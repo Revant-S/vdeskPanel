@@ -11,6 +11,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.26.0
 	github.com/google/go-cmp v0.7.0
 	golang.org/x/crypto v0.58.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sys v0.49.0
 	modernc.org/sqlite v1.60.1
 )
