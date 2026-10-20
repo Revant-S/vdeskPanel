@@ -27,7 +27,10 @@ const (
 	Partial
 	Local
 	Dirty
+	Corrupt
 )
+
+type Ino uint64
 
 func NewObjectID(random io.Reader) (ObjectID, error) {
 	id, err := randomHex(random, 16)
