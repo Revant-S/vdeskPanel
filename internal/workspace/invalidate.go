@@ -9,8 +9,9 @@ import (
 const invalidationQueueSize = 256
 
 type entryInvalidation struct {
-	parent model.Ino
-	name   string
+	parent  model.Ino
+	name    string
+	content bool
 }
 
 // queueEntryInvalidation defers a kernel invalidation until the current filesystem call has
@@ -23,6 +24,13 @@ func (w *Workspace) queueEntryInvalidation(parent model.Ino, name string) {
 	}
 }
 
+func (w *Workspace) queueContentInvalidation(ino model.Ino) {
+	select {
+	case w.pendingInvalidations <- entryInvalidation{parent: ino, content: true}:
+	default:
+	}
+}
+
 // RunInvalidations delivers queued invalidations until ctx ends.
 func (w *Workspace) RunInvalidations(ctx context.Context) error {
 	for {
@@ -30,7 +38,12 @@ func (w *Workspace) RunInvalidations(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case request := <-w.pendingInvalidations:
-			if invalidator := w.invalidator.Load(); invalidator != nil {
+			invalidator := w.invalidator.Load()
+			switch {
+			case invalidator == nil:
+			case request.content:
+				(*invalidator).InvalidateContent(request.parent)
+			default:
 				(*invalidator).InvalidateEntry(request.parent, request.name)
 			}
 		}

@@ -159,10 +159,17 @@ func (h *handle) Sync(context.Context) error {
 }
 
 func (h *handle) Release(ctx context.Context) error {
-	defer h.ws.handles.remove(h)
+	id := h.ws.handles.objectOf(h)
 	closeErr := h.entry.Close()
-	if h.wrote.Load() && !h.detached.Load() {
-		if err := h.ws.recordModify(ctx, h.ws.handles.objectOf(h)); err != nil {
+	h.ws.handles.remove(h)
+	wrote := h.wrote.Load() && !h.detached.Load()
+	if wrote {
+		if err := h.ws.recordModify(ctx, id); err != nil {
+			return err
+		}
+	}
+	if h.writable && !h.detached.Load() {
+		if err := h.ws.resolveDeferredContent(ctx, id, wrote); err != nil {
 			return err
 		}
 	}

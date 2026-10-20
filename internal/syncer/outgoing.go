@@ -127,6 +127,14 @@ func (o *Outgoing) syncOnce(ctx context.Context, ignoreQuiet bool) (bool, error)
 	return true, nil
 }
 
+// Exclusive runs fn while no batch is in flight, so remote changes never interleave with
+// an upload of the same object.
+func (o *Outgoing) Exclusive(fn func() error) error {
+	o.runMu.Lock()
+	defer o.runMu.Unlock()
+	return fn()
+}
+
 func (o *Outgoing) retryDelay() time.Duration {
 	delay := o.config.RetryBase << min(o.failures, 6)
 	return min(delay, o.config.RetryMax)

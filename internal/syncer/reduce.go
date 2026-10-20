@@ -40,6 +40,7 @@ type NetOp struct {
 	TrashLatest bool               `json:"trashLatest,omitempty"`
 	AdoptFrom   model.ObjectID     `json:"adoptFrom,omitempty"`
 	SubsumedBy  model.ObjectID     `json:"subsumedBy,omitempty"`
+	Superseded  bool               `json:"superseded,omitempty"`
 	FileCount   int                `json:"fileCount,omitempty"`
 	Version     model.Stamp        `json:"version"`
 	Seqs        []int64            `json:"seqs"`
@@ -92,7 +93,7 @@ func groupByObject(raw []index.PendingOp) ([]*objectOps, error) {
 }
 
 func reduceObject(group *objectOps, synced bool) []NetOp {
-	var created, modified, attr, moved, deleted, absorbed bool
+	var created, modified, attr, moved, deleted, absorbed, superseded bool
 	var firstFrom string
 	var last model.LocalOp
 	for _, op := range group.ops {
@@ -112,12 +113,18 @@ func reduceObject(group *objectOps, synced bool) []NetOp {
 			deleted = true
 		case model.LocalAbsorb:
 			absorbed = true
+		case model.LocalSupersede:
+			superseded = true
 		}
 		last = op
 	}
 	base := NetOp{ObjectID: group.id, Folder: group.ops[0].Folder, Path: last.Path, Seqs: seqsOf(group.raw),
 		Version: group.raw[len(group.raw)-1].Stamp}
 	switch {
+	case superseded:
+		op := with(base, NetDelete)
+		op.Reason, op.TrashLatest, op.Superseded = last.Reason, !synced, true
+		return []NetOp{op}
 	case absorbed || (deleted && !synced) || (created && !synced && deleted):
 		if synced {
 			return []NetOp{with(base, NetAbsorb)}

@@ -1,14 +1,17 @@
 package devicetest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"path"
 	"strings"
 
+	"github.com/cosmoboy/vault/internal/crypto"
 	"github.com/cosmoboy/vault/internal/fusefs"
 	"github.com/cosmoboy/vault/internal/model"
+	"github.com/cosmoboy/vault/internal/vaultfile"
 )
 
 // The helpers below drive the workspace exactly as the FUSE layer does.
@@ -126,3 +129,53 @@ func (d *Device) ObjectID(p string) model.ObjectID {
 	}
 	return entry.ID
 }
+
+func (d *Device) Poll() {
+	d.t.Helper()
+	if err := d.Incoming.PollOnce(context.Background()); err != nil {
+		d.t.Fatalf("%s: poll: %v", d.ID, err)
+	}
+}
+
+// SyncAndPoll publishes this device's changes, then picks up everyone else's.
+func (d *Device) SyncAndPoll() {
+	d.t.Helper()
+	d.Sync()
+	d.Poll()
+}
+
+// DecryptRemoteBody downloads a Drive file and decrypts it as a VLT1 body.
+func (d *Device) DecryptRemoteBody(driveID string) []byte {
+	d.t.Helper()
+	var encrypted bytes.Buffer
+	if err := d.Client.DownloadAll(context.Background(), driveID, &encrypted); err != nil {
+		d.t.Fatal(err)
+	}
+	var plaintext []byte
+	err := d.Network.Keyring.Use(func(k *crypto.Keys) error {
+		size, err := vaultfile.PlaintextSize(int64(encrypted.Len()))
+		if err != nil {
+			return err
+		}
+		body, err := vaultfile.OpenBody(readOnly{bytes.NewReader(encrypted.Bytes())}, k.Content, size, nil)
+		if err != nil {
+			return err
+		}
+		defer body.Close()
+		plaintext = make([]byte, size)
+		_, err = body.ReadAt(plaintext, 0)
+		if errors.Is(err, io.EOF) {
+			err = nil
+		}
+		return err
+	})
+	if err != nil {
+		d.t.Fatalf("decrypt remote body %s: %v", driveID, err)
+	}
+	return plaintext
+}
+
+type readOnly struct{ *bytes.Reader }
+
+func (readOnly) WriteAt([]byte, int64) (int, error) { return 0, io.ErrClosedPipe }
+func (readOnly) Truncate(int64) error               { return io.ErrClosedPipe }

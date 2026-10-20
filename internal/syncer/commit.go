@@ -57,7 +57,7 @@ func contentOp(kind journal.OpKind, op BatchOp) journal.Op {
 	return journal.Op{Kind: kind, ObjectID: op.ObjectID, ParentID: op.Object.ParentID, Path: op.Path,
 		EncName: op.Object.EncName, Folder: op.Folder, Size: result.Size, ModTime: op.Object.ModTime,
 		Executable: op.Object.Executable, ContentMAC: result.ContentMAC, BodyID: result.BodyID,
-		BodyMD5: result.BodyMD5, DriveID: result.DriveID, Version: op.Version}
+		BodyMD5: result.BodyMD5, DriveID: result.DriveID, PreviousDriveID: op.Object.DriveID, Version: op.Version}
 }
 
 func placementOp(op BatchOp) journal.Op {
@@ -78,7 +78,10 @@ func attrOp(op BatchOp) journal.Op {
 
 func deleteOp(op BatchOp) journal.Op {
 	kind := journal.OpDelete
-	if op.Reason == model.ReasonMovedOut {
+	switch {
+	case op.Superseded:
+		kind = journal.OpSuperseded
+	case op.Reason == model.ReasonMovedOut:
 		kind = journal.OpMovedOut
 	}
 	trash := &journal.TrashRef{ID: op.TrashID, DriveID: trashDriveID(op), Reason: string(op.Reason), OriginalPath: op.Path,

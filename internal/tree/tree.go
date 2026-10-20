@@ -118,3 +118,13 @@ func newNode(entry model.Entry) *node {
 	}
 	return n
 }
+
+// ReplaceContents makes t hold exactly what other holds, so holders of t see the new state.
+func (t *Tree) ReplaceContents(other *Tree) {
+	other.mu.RLock()
+	nodes := other.nodes
+	other.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.nodes = nodes
+}
