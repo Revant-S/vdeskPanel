@@ -31,3 +31,10 @@ Decisions and conflicts that came up while building, in order.
 - **Packs.** When a pack is ingested, its commits are re-sealed one by one, so the `commits` table only ever holds single-commit blobs. Pack uploads use a generated ID; a crash between pack and single deletion leaves duplicates, which readers dedupe by commit ID.
 - **Missing log files (R29).** `Ingest` returns `ErrLogFileGone` when a listed log file disappears (packed by its device in the meantime). The poller then lists that folder again.
 - **Stamp JSON.** `model.Stamp` marshals as its text form, so commits carry `"clock": "1761055200123.0007.d-4a2e"` as in spec §9.
+
+## Step 4a: fusefs
+
+- **Built before workspace.** fusefs was built against an in-memory `Store` while the tree/cache agent worked, since it depends only on its own interface. The real `Store` (workspace) follows in step 4b.
+- **Inode-keyed interface (R9).** The `Store` interface is keyed by `model.Ino`, so fusefs never sees object IDs. fusefs does keep an ino→`*fs.Inode` map, used only to deliver kernel invalidations and dropped on `OnForget`.
+- **Xattrs.** `Setxattr` and `Removexattr` return ENOTSUP. `Getxattr` returns ENODATA and `Listxattr` returns an empty list, so `cp -a`, rsync and Nautilus carry on instead of failing.
+- **Caller PID.** It reaches the store as given by the kernel (the thread ID). TID→TGID resolution (R18) belongs to procfilter and move-out detection in step 7.

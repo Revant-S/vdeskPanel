@@ -10,6 +10,7 @@ require (
 	github.com/awnumar/memguard v0.23.0
 	github.com/bits-and-blooms/bitset v1.26.0
 	github.com/google/go-cmp v0.7.0
+	github.com/hanwen/go-fuse/v2 v2.12.0
 	github.com/klauspost/compress v1.20.3
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
