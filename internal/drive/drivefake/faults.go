@@ -20,6 +20,13 @@ type Fault struct {
 	AfterBytes int64
 }
 
+// ClearFaults removes every pending fault, like a network coming back.
+func (s *Server) ClearFaults() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.faults = nil
+}
+
 func (s *Server) InjectFault(fault Fault) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
