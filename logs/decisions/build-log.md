@@ -22,3 +22,12 @@ Decisions and conflicts that came up while building, in order.
 - **Sealing.** Sealing happens inside `index` through an injected `Sealer` (`crypto.IndexSealer`), so callers can't forget to seal a path column. The `pending_ops.payload` AD is bound to the op's stamp instead of `seq`, because `seq` isn't known until after the insert and stamps are unique per device.
 - **Connections.** One writer connection (`_txlock=immediate`) and a 4-connection reader pool. Updates must not nest. FUSE lookups are served from the in-memory tree, so index reads are rare.
 - **`Store` methods.** `Store` implements the cache's `BitmapStore` directly (`SegmentBitmap`, `PutSegmentBitmap`).
+
+## Step 5b: journal (built ahead of the outgoing syncer)
+
+- **Order.** The journal was built before the outgoing syncer. The plan already put it first in commit order, because the outgoing pipeline ends by recording a commit.
+- **Index access.** `journal` reads and writes `*index.Store` directly instead of through a consumer-declared interface. `index` is local storage, so a mirror interface of a dozen methods would be boilerplate. The interface rule still holds for the remote: `journal.LogRemote` is declared in `journal` and adapted to `drive.Client` in `daemon`.
+- **Replay without duplicates (R12).** `Record(commitID, driveID, ops)` is idempotent. If the commit is already in the index it's returned. If the pre-generated Drive ID already exists, the uploaded blob is downloaded and adopted, so clock and parents match what other devices see. Otherwise a new commit is sealed and uploaded.
+- **Packs.** When a pack is ingested, its commits are re-sealed one by one, so the `commits` table only ever holds single-commit blobs. Pack uploads use a generated ID; a crash between pack and single deletion leaves duplicates, which readers dedupe by commit ID.
+- **Missing log files (R29).** `Ingest` returns `ErrLogFileGone` when a listed log file disappears (packed by its device in the meantime). The poller then lists that folder again.
+- **Stamp JSON.** `model.Stamp` marshals as its text form, so commits carry `"clock": "1761055200123.0007.d-4a2e"` as in spec §9.
