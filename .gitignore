@@ -1,0 +1,5 @@
+/bin/
+*.test
+*.out
+panel/frontend/node_modules/
+panel/frontend/dist/
