@@ -7,6 +7,8 @@ toolchain go1.26.8
 tool honnef.co/go/tools/cmd/staticcheck
 
 require (
+	github.com/BurntSushi/toml v1.6.0
+	github.com/adrg/xdg v0.5.3
 	github.com/awnumar/memguard v0.23.0
 	github.com/bits-and-blooms/bitset v1.26.0
 	github.com/google/go-cmp v0.7.0
@@ -20,7 +22,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/awnumar/memcall v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
