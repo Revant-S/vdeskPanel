@@ -14,3 +14,11 @@ Decisions and conflicts that came up while building, in order.
 - **Index subkeys.** `index/seal` and `index/mac` come straight from HKDF over the VMK with labels `vault/v1/index/seal` and `vault/v1/index/mac`, not through an intermediate `index` key. This gives the same domain separation with one less step.
 - **Residual heap copies.** Each `cipher.AEAD` (per subkey and per open body) and each HMAC state keeps its own copy of the key on the Go heap. memguard can't reach those copies. They're built once per key, not per message, so there are only a handful.
 - **`HardenProcess(lockAllMemory)`.** This runs `mlockall` only when `RLIMIT_MEMLOCK` is infinite or the flag is set. It's tested in a child process so the test binary stays dumpable.
+
+## Step 3a: index
+
+- **Parallel steps.** Step 3 doesn't depend on step 2 (cache declares its own fetcher interface), so it started while the step 2 agents were still running. Each step still merges only after its own tests pass.
+- **Schema version.** Stored in `PRAGMA user_version` rather than `kv`. This avoids needing the `kv` table to exist before the first migration runs, and SQLite updates it atomically inside the migration transaction.
+- **Sealing.** Sealing happens inside `index` through an injected `Sealer` (`crypto.IndexSealer`), so callers can't forget to seal a path column. The `pending_ops.payload` AD is bound to the op's stamp instead of `seq`, because `seq` isn't known until after the insert and stamps are unique per device.
+- **Connections.** One writer connection (`_txlock=immediate`) and a 4-connection reader pool. Updates must not nest. FUSE lookups are served from the in-memory tree, so index reads are rare.
+- **`Store` methods.** `Store` implements the cache's `BitmapStore` directly (`SegmentBitmap`, `PutSegmentBitmap`).
