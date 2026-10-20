@@ -85,3 +85,11 @@ Decisions and conflicts that came up while building, in order.
 - **Known limits:**
   - A remote move that would make a local folder cycle is refused with a warning, not reverted (R16 row 9).
   - A file moved out of a folder deleted elsewhere follows the folder delete only if the delete reached this device first.
+
+## Paused on 2026-10-21
+
+The owner asked to stop the agents to save tokens. Their unfinished work is committed as WIP (untested, may not build) on:
+- `feat/08d-api-cli`: API server files, not yet the client or CLI.
+- `feat/09-panel`: `panel/layout` only.
+
+`main` holds steps 0–6 plus the API contract, and every check passes. Next up: step 7 (trash restore, purge and expiry, move-out detection, notifications), then step 8 (daemon) and the rest of 8 and 9 from those branches.
