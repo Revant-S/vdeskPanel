@@ -1,4 +1,4 @@
-STATICCHECK := go run honnef.co/go/tools/cmd/staticcheck@v0.8.2
+STATICCHECK := go tool staticcheck
 
 .PHONY: check fmt-check vet lint test build e2e panel
 
