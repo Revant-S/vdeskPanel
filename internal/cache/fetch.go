@@ -92,7 +92,10 @@ func (o *object) fetchSpan(ctx context.Context, span segmentSpan) error {
 
 // storeBitmap runs after the ranges were written but without an fsync: a bitmap that outlives
 // its data after a crash reads as a bad segment, and a mirror refetches those (arbitration R3).
+// bitmapMu keeps parallel fetches from storing an older snapshot over a newer one.
 func (o *object) storeBitmap(ctx context.Context) error {
+	o.bitmapMu.Lock()
+	defer o.bitmapMu.Unlock()
 	o.mu.Lock()
 	if o.detached || !o.mirrorsRemote {
 		o.mu.Unlock()
