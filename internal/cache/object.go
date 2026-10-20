@@ -29,7 +29,8 @@ type object struct {
 	writers int
 
 	// fetchMu serializes range fetches and body replacement, so a fetch never lands in a new body.
-	fetchMu sync.Mutex
+	fetchMu  sync.Mutex
+	bitmapMu sync.Mutex
 
 	mu             sync.Mutex
 	body           *vaultfile.Body

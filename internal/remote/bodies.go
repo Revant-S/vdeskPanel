@@ -32,5 +32,16 @@ func (b Bodies) FetchRange(ctx context.Context, id model.ObjectID, offset, lengt
 	if driveID == "" {
 		return fmt.Errorf("object %s has no remote body", id)
 	}
-	return b.Client.DownloadRange(ctx, driveID, offset, length, w)
+	return b.Client.DownloadRange(ctx, driveID, offset, length, rangeRelative{w: w, start: offset})
+}
+
+// rangeRelative turns the Drive client's absolute offsets into the cache's offsets relative
+// to the start of the requested range.
+type rangeRelative struct {
+	w     io.WriterAt
+	start int64
+}
+
+func (r rangeRelative) WriteAt(p []byte, offset int64) (int, error) {
+	return r.w.WriteAt(p, offset-r.start)
 }
