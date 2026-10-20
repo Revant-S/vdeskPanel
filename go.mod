@@ -11,6 +11,8 @@ require (
 	github.com/adrg/xdg v0.5.3
 	github.com/awnumar/memguard v0.23.0
 	github.com/bits-and-blooms/bitset v1.26.0
+	github.com/esiqveland/notify v0.14.0
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/go-cmp v0.7.0
 	github.com/hanwen/go-fuse/v2 v2.12.0
 	github.com/klauspost/compress v1.20.3
