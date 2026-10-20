@@ -4,3 +4,4 @@
 panel/frontend/node_modules/
 panel/frontend/dist/*
 !panel/frontend/dist/.gitkeep
+/.claude/

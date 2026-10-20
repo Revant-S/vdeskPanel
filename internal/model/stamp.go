@@ -65,3 +65,19 @@ func compareOrdered[T int64 | uint16](a, b T) int {
 		return 0
 	}
 }
+
+func (s Stamp) MarshalText() ([]byte, error) {
+	if s.IsZero() {
+		return nil, nil
+	}
+	return []byte(s.String()), nil
+}
+
+func (s *Stamp) UnmarshalText(text []byte) error {
+	parsed, err := ParseStamp(string(text))
+	if err != nil {
+		return err
+	}
+	*s = parsed
+	return nil
+}

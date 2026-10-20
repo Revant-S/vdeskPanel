@@ -66,3 +66,18 @@ func TestNewIDs(t *testing.T) {
 		t.Fatal("NewObjectID with empty random succeeded")
 	}
 }
+
+func TestStampJSONText(t *testing.T) {
+	stamp := Stamp{WallMillis: 12, Counter: 3, Device: "d-x"}
+	text, err := stamp.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Stamp
+	if err := back.UnmarshalText(text); err != nil || back != stamp {
+		t.Fatalf("UnmarshalText = %v, %v", back, err)
+	}
+	if text, _ := (Stamp{}).MarshalText(); len(text) != 0 {
+		t.Fatalf("zero stamp text = %q", text)
+	}
+}
