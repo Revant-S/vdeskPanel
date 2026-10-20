@@ -8,6 +8,7 @@ tool honnef.co/go/tools/cmd/staticcheck
 
 require (
 	github.com/awnumar/memguard v0.23.0
+	github.com/cenkalti/backoff/v5 v5.0.3
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/time v0.16.0
