@@ -49,7 +49,7 @@ func NewFlow(config *oauth2.Config, listen func() (net.Listener, error)) *Flow {
 
 // Begin starts the callback listener, which lives until wait returns or ctx ends.
 // wait may be called once; it exchanges the code with the PKCE verifier.
-func (f *Flow) Begin(ctx context.Context) (string, func(context.Context) (*oauth2.Token, error), error) {
+func (f *Flow) Begin(ctx context.Context) (authURL string, wait func(context.Context) (*oauth2.Token, error), err error) {
 	listener, err := f.listen()
 	if err != nil {
 		return "", nil, fmt.Errorf("listen for OAuth callback: %w", err)
@@ -61,7 +61,7 @@ func (f *Flow) Begin(ctx context.Context) (string, func(context.Context) (*oauth
 	}
 	session := newSignIn(ctx, *f.config, redirectURL)
 	session.serve(listener)
-	authURL := session.config.AuthCodeURL(session.state,
+	authURL = session.config.AuthCodeURL(session.state,
 		oauth2.AccessTypeOffline,
 		oauth2.ApprovalForce,
 		oauth2.S256ChallengeOption(session.verifier))
