@@ -1,6 +1,6 @@
 STATICCHECK := go tool staticcheck
 
-.PHONY: check fmt-check vet lint test build e2e panel
+.PHONY: check fmt-check vet lint test test-bulk build e2e panel
 
 check: fmt-check vet lint test
 
@@ -17,6 +17,9 @@ lint:
 
 test:
 	go test -race ./...
+
+test-bulk:
+	VAULT_BULK_TESTS=1 go test -count=1 -run Thousands -v ./internal/syncer
 
 build:
 	CGO_ENABLED=0 go build -o bin/ ./cmd/...
