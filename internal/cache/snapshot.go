@@ -99,7 +99,7 @@ func (c *Cache) RemoveSnapshot(batchID string, id model.ObjectID) error {
 	if err := validateID(batchID); err != nil {
 		return err
 	}
-	if err := validateID(string(id)); err != nil {
+	if err := validateObjectID(id); err != nil {
 		return err
 	}
 	dir := c.snapshotDir(batchID)
@@ -115,7 +115,7 @@ func (c *Cache) RemoveSnapshot(batchID string, id model.ObjectID) error {
 // Replace renames fromPath over the cached body, which then counts as complete. Entries opened
 // before keep reading the old inode and are detached: their writes reach nothing (arbitration R9).
 func (c *Cache) Replace(ctx context.Context, id model.ObjectID, fromPath string) error {
-	if err := validateID(string(id)); err != nil {
+	if err := validateObjectID(id); err != nil {
 		return err
 	}
 	c.mu.Lock()
@@ -140,7 +140,7 @@ func (c *Cache) Replace(ctx context.Context, id model.ObjectID, fromPath string)
 // Free deletes the local body. It refuses while a writer is open; the Dirty and Corrupt
 // refusals of arbitration R30 belong to the caller, which knows the index state.
 func (c *Cache) Free(ctx context.Context, id model.ObjectID) error {
-	if err := validateID(string(id)); err != nil {
+	if err := validateObjectID(id); err != nil {
 		return err
 	}
 	c.mu.Lock()

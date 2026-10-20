@@ -103,12 +103,25 @@ func (c *Cache) Close() {
 }
 
 func (c *Cache) BodyPath(id model.ObjectID) string {
-	return filepath.Join(c.dir, string(id[:2]), string(id))
+	shard := string(id)
+	if len(shard) > 2 {
+		shard = shard[:2]
+	}
+	return filepath.Join(c.dir, shard, string(id))
 }
 
-func validateID(id string) error {
-	if len(id) < 2 || id == ".." {
+// validateObjectID also requires two characters for the shard directory.
+func validateObjectID(id model.ObjectID) error {
+	if len(id) < 2 {
 		return fmt.Errorf("%w: %q", ErrInvalidID, id)
+	}
+	return validateID(string(id))
+}
+
+// validateID keeps object and batch IDs to an alphabet that is safe as a path component.
+func validateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty", ErrInvalidID)
 	}
 	for _, r := range id {
 		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '-' || r == '_') {
@@ -124,7 +137,7 @@ func (c *Cache) withContent(use func(content cipher.AEAD) error) error {
 
 // Create starts a new Local body for a file created on this device.
 func (c *Cache) Create(ctx context.Context, id model.ObjectID) (*Entry, error) {
-	if err := validateID(string(id)); err != nil {
+	if err := validateObjectID(id); err != nil {
 		return nil, err
 	}
 	c.mu.Lock()
@@ -161,7 +174,7 @@ type openRequest struct {
 }
 
 func (c *Cache) open(ctx context.Context, request openRequest) (*Entry, error) {
-	if err := validateID(string(request.id)); err != nil {
+	if err := validateObjectID(request.id); err != nil {
 		return nil, err
 	}
 	c.mu.Lock()

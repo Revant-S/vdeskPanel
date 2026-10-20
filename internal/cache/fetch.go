@@ -165,7 +165,7 @@ func (b *bufferWriter) WriteAt(p []byte, offset int64) (int, error) {
 // per object runs at a time; stopPrefetch cancels it and waits.
 func (o *object) prefetchRun(runStart int64) {
 	o.mu.Lock()
-	if o.prefetching || o.stopped || o.detached || !o.mirrorsRemote || runStart >= vaultfile.SegmentCount(o.size) {
+	if o.prefetching || o.stopped || o.detached || o.ctx.Err() != nil || !o.mirrorsRemote || runStart >= vaultfile.SegmentCount(o.size) {
 		o.mu.Unlock()
 		return
 	}

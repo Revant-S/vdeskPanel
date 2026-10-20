@@ -14,7 +14,7 @@ import (
 // openExisting opens a body the caller has no index state for: without a bitmap record it is
 // a complete local-authored body, otherwise a mirror.
 func (c *Cache) openExisting(ctx context.Context, id model.ObjectID) (*Entry, error) {
-	if err := validateID(string(id)); err != nil {
+	if err := validateObjectID(id); err != nil {
 		return nil, err
 	}
 	c.mu.Lock()
