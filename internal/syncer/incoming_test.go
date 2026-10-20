@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"net/http"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/cosmoboy/vault/internal/devicetest"
@@ -265,4 +267,29 @@ func TestExpiredPageTokenRebuildsWithoutDuplicates(t *testing.T) {
 	if !b.Exists("/one.txt") || !b.Exists("/two.txt") || len(b.Workspace.Tree().Children(model.RootID)) != 2 {
 		t.Fatal("rebuild after token expiry lost or duplicated files")
 	}
+}
+
+func TestNetworkDropMidSyncCompletesWithoutDuplicates(t *testing.T) {
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.Mkdir("/Docs")
+	for i := 0; i < 20; i++ {
+		a.WriteFile("/Docs/f"+string(rune('a'+i)), []byte(strings.Repeat("d", 1000*i)))
+	}
+	var sent atomic.Int32
+	n.Drive.InjectFault(drivefake.Fault{Match: func(*http.Request) bool { return sent.Add(1) > 15 }, Status: 503, Times: 100000})
+	if err := a.Outgoing.FlushNow(context.Background()); err == nil {
+		t.Fatal("sync succeeded with the network down")
+	}
+	n.Drive.ClearFaults()
+	a.Sync()
+	b.Poll()
+	docs := objectOf(t, a, a.ObjectID("/Docs"))
+	if files := driveFilesUnder(t, n, docs.DriveID); len(files) != 20 {
+		t.Fatalf("Drive holds %d files after the drop, want 20", len(files))
+	}
+	if got := len(b.Workspace.Tree().Children(b.ObjectID("/Docs"))); got != 20 {
+		t.Fatalf("B sees %d files, want 20", got)
+	}
+	expectContent(t, b, "/Docs/fc", strings.Repeat("d", 2000))
 }
