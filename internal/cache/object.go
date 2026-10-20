@@ -137,6 +137,9 @@ func (o *object) loadSparseState(ctx context.Context) error {
 		return err
 	}
 	if body == nil || stored == nil {
+		if body != nil {
+			body.Close()
+		}
 		return o.resetSparseFile(ctx)
 	}
 	o.body, o.present = body, stored

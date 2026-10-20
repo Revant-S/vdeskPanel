@@ -212,3 +212,28 @@ func TestConcurrentSparseReads(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestStaleSparseBodyIsDroppedWhenRemoteChanges(t *testing.T) {
+	rig := newTestRig(t)
+	c := rig.newCache(t, 4)
+	ctx := context.Background()
+	before := patternedPlaintext(3 * segment)
+	beforeID := rig.publishRemoteBody(t, testID, before)
+	entry, err := c.Open(ctx, testID, int64(len(before)), model.CloudOnly, beforeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRange(t, entry, before, 0, 10)
+	entry.Close()
+
+	after := []byte("a different remote version")
+	afterID := rig.publishRemoteBody(t, testID, after)
+	rig.remote.takeFetched()
+	reopened, err := c.Open(ctx, testID, int64(len(after)), model.Partial, afterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	assertRange(t, reopened, after, 0, int64(len(after)))
+	assertFetched(t, rig.remote, headerRange, segmentRange(0, 0, int64(len(after))))
+}
