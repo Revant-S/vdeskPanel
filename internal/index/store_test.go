@@ -275,9 +275,14 @@ func TestSegmentBitmapPersists(t *testing.T) {
 	if err != nil || !got.Test(129) || !got.Test(0) || got.Count() != 2 {
 		t.Fatalf("bitmap = %v, %v", got, err)
 	}
-	empty, err := reopened.SegmentBitmap(context.Background(), "none")
-	if err != nil || empty.Count() != 0 {
-		t.Fatalf("missing bitmap = %v, %v", empty, err)
+	if missing, err := reopened.SegmentBitmap(context.Background(), "none"); err != nil || missing != nil {
+		t.Fatalf("missing bitmap = %v, %v", missing, err)
+	}
+	if err := reopened.PutSegmentBitmap(context.Background(), "aa", nil); err != nil {
+		t.Fatal(err)
+	}
+	if deleted, err := reopened.SegmentBitmap(context.Background(), "aa"); err != nil || deleted != nil {
+		t.Fatalf("deleted bitmap = %v, %v", deleted, err)
 	}
 }
 
