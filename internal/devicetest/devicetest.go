@@ -82,6 +82,7 @@ type Device struct {
 	Workspace *workspace.Workspace
 	Journal   *journal.Journal
 	Outgoing  *syncer.Outgoing
+	Incoming  *syncer.Incoming
 	LogFolder string
 	t         *testing.T
 	codec     *journal.Codec
@@ -116,7 +117,7 @@ func (d *Device) Start() {
 	}
 	clock := journal.NewClock(d.ID, time.Now, model.Stamp{}, nil, n.Logger)
 	d.Workspace, err = workspace.Open(ctx, workspace.Deps{Index: d.Index, Cache: d.Cache, Names: crypto.NewKeyringNames(n.Keyring, rand.Reader),
-		Clock: clock, Random: rand.Reader, Now: time.Now, Logger: n.Logger}, workspace.Config{UID: 1000})
+		Clock: clock, Random: rand.Reader, Now: time.Now, Logger: n.Logger}, workspace.Config{UID: 1000, Device: d.ID, DeviceName: string(d.ID)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,6 +142,9 @@ func (d *Device) startSync(clock *journal.Clock) {
 		Remote: remote.Tree{Client: d.Client}, Journal: d.Journal, Keyring: n.Keyring, Random: rand.Reader, Now: time.Now, Logger: n.Logger},
 		syncer.OutgoingConfig{VaultID: n.VaultID, Device: d.ID, TreeFolderID: n.Folders.Tree, TrashFolderID: n.Folders.Trash,
 			Readiness: syncer.ReadinessConfig{MaxBatch: 200}, RetryBase: time.Millisecond, RetryMax: 10 * time.Millisecond})
+	d.Incoming = syncer.NewIncoming(syncer.IncomingDeps{Index: d.Index, Source: remote.Changes{Client: d.Client}, Journal: d.Journal,
+		Applier: d.Workspace, Exclusive: d.Outgoing.Exclusive, NotFound: remote.IsNotFound, Now: time.Now, Logger: n.Logger},
+		syncer.IncomingConfig{Device: d.ID, LogFolderID: n.Folders.Log, OwnLogFolderID: d.LogFolder})
 }
 
 // Stop closes the device without flushing anything, like a process that was killed.

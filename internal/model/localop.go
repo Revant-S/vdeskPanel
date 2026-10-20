@@ -12,6 +12,9 @@ const (
 	// LocalAbsorb removes an object whose body became another object's content through a
 	// rename over it. Its remote copy is deleted outright, not trashed.
 	LocalAbsorb LocalOpKind = "absorb"
+	// LocalSupersede puts a version that lost a conflict into the trash. The object is a
+	// hidden holder: either a local body still to upload, or a Drive file already uploaded.
+	LocalSupersede LocalOpKind = "supersede"
 )
 
 type DeleteReason string
@@ -21,6 +24,14 @@ const (
 	ReasonMovedOut   DeleteReason = "moved out"
 	ReasonSuperseded DeleteReason = "superseded"
 )
+
+func SupersededBy(device string) DeleteReason {
+	return DeleteReason("superseded by " + device)
+}
+
+func ParentDeletedOn(device string) DeleteReason {
+	return DeleteReason("parent deleted on " + device)
+}
 
 // LocalOp is the sealed payload of one pending op. Paths are recorded when the op happens,
 // since a deleted object is no longer in the tree when the batch runs.

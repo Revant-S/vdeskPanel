@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 
 	"github.com/cosmoboy/vault/internal/cache"
 	"github.com/cosmoboy/vault/internal/index"
@@ -49,9 +50,25 @@ func (o *Outgoing) deleteSupersededRemote(ctx context.Context, op BatchOp) error
 	case op.Kind == NetModify && op.Result.DriveID != old,
 		op.Kind == NetDelete && op.TrashLatest && op.Result.DriveID != "" && op.Result.DriveID != old,
 		op.Kind == NetAbsorb:
-		return ignoreNotFound(o.Remote.Delete(ctx, old))
+		return o.deleteUnlessTrashed(ctx, old)
 	}
 	return nil
+}
+
+// deleteUnlessTrashed removes a superseded version, unless another device has meanwhile
+// moved it into the trash, where it is now the body of a trash entry.
+func (o *Outgoing) deleteUnlessTrashed(ctx context.Context, driveID string) error {
+	current, err := o.Remote.Get(ctx, driveID)
+	if errors.Is(err, ErrRemoteNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if slices.Contains(current.Parents, o.config.TrashFolderID) {
+		return nil
+	}
+	return ignoreNotFound(o.Remote.Delete(ctx, driveID))
 }
 
 // settleLocalBody makes the uploaded snapshot the cache body when nothing changed since, so

@@ -60,9 +60,14 @@ type Deps struct {
 	Classify DeleteClassifier
 	Reads    ReadObserver
 	DiskFree func() (total, free, available uint64, err error)
+	// WantLocal asks for a background download, after a remote change replaced a file that
+	// was fully on this device.
+	WantLocal func(id model.ObjectID)
 }
 
 type Config struct {
+	Device      model.DeviceID
+	DeviceName  string
 	UID         uint32
 	QuietPeriod time.Duration
 	DeleteHold  time.Duration
