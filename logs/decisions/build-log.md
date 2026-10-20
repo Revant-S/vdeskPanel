@@ -68,3 +68,20 @@ Decisions and conflicts that came up while building, in order.
 - **Quota test scale (acceptance: 5,000 files, ≤3 pushbacks).** The test scales the fake's quota and our budget by the same factor (×100), keeping the ratio that decides whether Drive pushes back. It's gated behind `make test-bulk` because it takes about 100 s. Result: 0 pushbacks.
 - **Throughput.** Local throughput is about 100 files/s. It's bounded by fsyncs: SQLite FULL sync per op (A3) and snapshot fsyncs. That's far above Drive's real ~3 creates/s, so Drive stays the bottleneck.
 - **Not covered by a test yet.** A Drive that reports a different MD5 than the bytes we sent: the fake can't do that, and its `CorruptContent` deliberately keeps the MD5. The code path re-uploads under a new ID.
+
+## Step 6: incoming, restore, verify
+
+- **Branch hand-off.** The incoming work was committed by the owner as "continue on cloud" on `cloudBranch` (pushed to `origin`) partway through. `origin/cloudBranch` had nothing newer, so the build continued from that commit; `feat/06a-syncer-incoming` was fast-forwarded to it and merged as usual. Nothing was pushed by the builder.
+- **Conflict detection uses `PreviousDriveID` (refinement of R16).** Each content op names the Drive version it replaced. A receiver whose current version differs knows the edit was concurrent, with no commit-graph walk. The losing version is moved to the trash by its own author, through one new op kind, `supersede`, which covers:
+  - an unsynced local body that lost;
+  - an already-uploaded version that lost;
+  - unsynced edits inside a folder deleted elsewhere ("parent deleted on <device>").
+- **Row 5 holds whether or not the edit is synced.** "Newer modify beats older delete" applies to synced edits too; a two-device test caught the first version only protecting unsynced ones.
+- **Trashed versions are never deleted.** Finalize skips deleting a superseded version that another device has moved into the trash, where it's now a trash entry's body.
+- **Deadlock fixed.** Cache calls that write bitmaps go through `index.Update` on the single writer connection, so they must never run inside an apply transaction. Remote-apply side effects (body moves, frees, kernel invalidations, download requests) run after the transaction commits, in order.
+- **Token order (R14).** The page token is saved after the commits it covers are ingested and applied. Ingest is idempotent by commit ID, so a crash in between re-reads and never skips.
+- **Apply excludes uploads.** Incoming apply runs under `Outgoing.Exclusive`, so it never interleaves with an upload of the same object.
+- **Restore/verify merge.** The agent fixed a real bug in `remote.Bodies.FetchRange` (absolute vs range-relative offsets): every cloud-only read through the real client failed. It also added `cache.EnsureCompleteParallel`. Notes are in `steps/06b-restore-verify.md`.
+- **Known limits:**
+  - A remote move that would make a local folder cycle is refused with a warning, not reverted (R16 row 9).
+  - A file moved out of a folder deleted elsewhere follows the folder delete only if the delete reached this device first.
