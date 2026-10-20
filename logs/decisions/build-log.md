@@ -38,3 +38,13 @@ Decisions and conflicts that came up while building, in order.
 - **Inode-keyed interface (R9).** The `Store` interface is keyed by `model.Ino`, so fusefs never sees object IDs. fusefs does keep an ino→`*fs.Inode` map, used only to deliver kernel invalidations and dropped on `OnForget`.
 - **Xattrs.** `Setxattr` and `Removexattr` return ENOTSUP. `Getxattr` returns ENODATA and `Listxattr` returns an empty list, so `cp -a`, rsync and Nautilus carry on instead of failing.
 - **Caller PID.** It reaches the store as given by the kernel (the thread ID). TID→TGID resolution (R18) belongs to procfilter and move-out detection in step 7.
+
+## Step 3b merge: tree and cache
+
+- **Bitmap contract conflict.** The cache agent defined "no bitmap record" as "complete locally authored body", and `PutSegmentBitmap(nil)` as delete. `index.Store` had returned an empty bitmap for a missing record, which the cache would read as a sparse body with nothing present. Resolved in favour of the cache's contract: it's the consumer that declared the interface. A compile-time assertion now checks that `*index.Store` satisfies `cache.BitmapStore`.
+- **Accepted cache deviations** (full list in `steps/03b-tree-cache.md`):
+  - read-only `Open` vs `OpenWritable`;
+  - one shared body object per oid;
+  - for Local/Dirty/Corrupt bodies, size comes from the file length;
+  - `Replace` doesn't refuse open writers, since rename-over needs that;
+  - Dirty/Corrupt refusal for Free is left to the workspace.

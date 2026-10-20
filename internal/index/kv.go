@@ -34,8 +34,10 @@ func (t *Tx) DeleteKV(key string) error {
 	return err
 }
 
+// SegmentBitmap returns nil when no bitmap is stored, which the cache reads as a complete,
+// locally authored body rather than a sparse mirror.
 func (s *Store) SegmentBitmap(ctx context.Context, id model.ObjectID) (*bitset.BitSet, error) {
-	present := bitset.New(0)
+	var present *bitset.BitSet
 	err := s.View(ctx, func(tx *Tx) error {
 		var data []byte
 		err := tx.queryRow(`SELECT bitmap FROM segments WHERE object_id = ?`, id).Scan(&data)
@@ -45,6 +47,7 @@ func (s *Store) SegmentBitmap(ctx context.Context, id model.ObjectID) (*bitset.B
 		if err != nil {
 			return err
 		}
+		present = bitset.New(0)
 		return present.UnmarshalBinary(data)
 	})
 	if err != nil {
@@ -53,7 +56,11 @@ func (s *Store) SegmentBitmap(ctx context.Context, id model.ObjectID) (*bitset.B
 	return present, nil
 }
 
+// PutSegmentBitmap with nil deletes the stored bitmap.
 func (s *Store) PutSegmentBitmap(ctx context.Context, id model.ObjectID, present *bitset.BitSet) error {
+	if present == nil {
+		return s.Update(ctx, func(tx *Tx) error { return tx.DeleteSegmentBitmap(id) })
+	}
 	data, err := present.MarshalBinary()
 	if err != nil {
 		return err
