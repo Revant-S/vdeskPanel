@@ -12,7 +12,7 @@ type recordingTB struct {
 }
 
 func (r *recordingTB) Errorf(string, ...any) { r.failures++ }
-func (r *recordingTB) Helper()                {}
+func (r *recordingTB) Helper()               {}
 
 func TestAssertDirCleanFindsNamesAndContents(t *testing.T) {
 	root := t.TempDir()
