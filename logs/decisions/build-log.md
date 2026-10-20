@@ -57,3 +57,14 @@ Decisions and conflicts that came up while building, in order.
 - **Crash recovery.** On open, every Dirty file's size is refreshed from its cache body, which can be newer than the index after a crash mid-write. A `modify` is queued only when the object has no pending op.
 - **Desktop trash.** `.Trash-<uid>` entries are local-only, but their bodies and names are still encrypted on disk (R27). A rename into `files/` deletes from the vault, removes the matching `.trashinfo`, and queues kernel invalidations.
 - **Invalidation queue.** Kernel invalidations go through a bounded queue drained by `RunInvalidations`, because notifying the kernel from inside a FUSE call deadlocks on its directory locks.
+
+## Step 5a: outgoing pipeline
+
+- **Rule placement.** The reducer, readiness and scheduling rules are pure functions (`ReduceToNetEffect`, `SelectReady`, `executionLevels`) with table tests. The R10 adoption and R11 coalescing rules live in the reducer, and the workspace applies adoption (`AdoptReplacement`) before the batch is persisted.
+- **Formation is one transaction.** Saving a new batch and assigning its ops is a single SQLite transaction. Otherwise a crash between the two would re-batch the same ops with fresh IDs and create duplicates on Drive.
+- **Checkpoint frequency.** Snapshot info and the session URI of a resumable upload are persisted immediately (R13). Everything else is persisted once per level. Replays are safe through pre-generated IDs; a replayed small file whose Drive copy doesn't match the fresh snapshot is deleted and re-uploaded under a new ID inside the same step. This took the 5,000-file sync from 94 s to 52 s.
+- **Moves read current parents.** Moves and trash moves `Get` the file first and change only what still differs, so replays are idempotent. This also removes any need to store the remote parent.
+- **Dedup.** Dedup searches the `objects` table only. Trashed rows keep their BodyID and MD5 (D32), so trash items are found too, and the copy's BodyID is known without a download.
+- **Quota test scale (acceptance: 5,000 files, ≤3 pushbacks).** The test scales the fake's quota and our budget by the same factor (×100), keeping the ratio that decides whether Drive pushes back. It's gated behind `make test-bulk` because it takes about 100 s. Result: 0 pushbacks.
+- **Throughput.** Local throughput is about 100 files/s. It's bounded by fsyncs: SQLite FULL sync per op (A3) and snapshot fsyncs. That's far above Drive's real ~3 creates/s, so Drive stays the bottleneck.
+- **Not covered by a test yet.** A Drive that reports a different MD5 than the bytes we sent: the fake can't do that, and its `CorruptContent` deliberately keeps the MD5. The code path re-uploads under a new ID.
