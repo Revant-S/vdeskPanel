@@ -30,19 +30,19 @@ const (
 
 // NetOp is what a batch does to one object, after its raw ops cancel or merge.
 type NetOp struct {
-	Kind         NetKind            `json:"kind"`
-	ObjectID     model.ObjectID     `json:"oid"`
-	Folder       bool               `json:"folder,omitempty"`
-	Path         string             `json:"path,omitempty"`
-	FromPath     string             `json:"fromPath,omitempty"`
-	Moved        bool               `json:"moved,omitempty"`
-	Reason       model.DeleteReason `json:"reason,omitempty"`
-	TrashLatest  bool               `json:"trashLatest,omitempty"`
-	AdoptFrom    model.ObjectID     `json:"adoptFrom,omitempty"`
-	SubsumedBy   model.ObjectID     `json:"subsumedBy,omitempty"`
-	FileCount    int                `json:"fileCount,omitempty"`
-	Version      model.Stamp        `json:"version"`
-	Seqs         []int64            `json:"seqs"`
+	Kind        NetKind            `json:"kind"`
+	ObjectID    model.ObjectID     `json:"oid"`
+	Folder      bool               `json:"folder,omitempty"`
+	Path        string             `json:"path,omitempty"`
+	FromPath    string             `json:"fromPath,omitempty"`
+	Moved       bool               `json:"moved,omitempty"`
+	Reason      model.DeleteReason `json:"reason,omitempty"`
+	TrashLatest bool               `json:"trashLatest,omitempty"`
+	AdoptFrom   model.ObjectID     `json:"adoptFrom,omitempty"`
+	SubsumedBy  model.ObjectID     `json:"subsumedBy,omitempty"`
+	FileCount   int                `json:"fileCount,omitempty"`
+	Version     model.Stamp        `json:"version"`
+	Seqs        []int64            `json:"seqs"`
 }
 
 // RemoteFacts tells the reducer what Drive already holds for an object before this batch.
