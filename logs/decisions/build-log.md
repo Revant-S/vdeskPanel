@@ -48,3 +48,12 @@ Decisions and conflicts that came up while building, in order.
   - for Local/Dirty/Corrupt bodies, size comes from the file length;
   - `Replace` doesn't refuse open writers, since rename-over needs that;
   - Dirty/Corrupt refusal for Free is left to the workspace.
+
+## Step 4b: workspace
+
+- **Ops at call time.** Every metadata change (create, mkdir, move, delete, setattr) writes its index row and its `pending_ops` row in one SQLite transaction. The op's stamp becomes the object's new `content_ver` or `placement_ver`. File creates queue `create` at once; the content is queued as `modify` at Release. The reducer (step 5) merges them.
+- **Rename over a file (R9).** The target keeps its oid. The source's inode is rebound to it, and handles on the old target are detached. The source row gets a tombstone and an `absorb` op, which tells the syncer to delete the source's remote copy permanently rather than trash it.
+- **vim pattern (R10).** It produces `delete notes.md~` + `create notes.md` in the queue, as the arbiter expected. The path-reuse adoption is a reducer rule, built in step 5.
+- **Crash recovery.** On open, every Dirty file's size is refreshed from its cache body, which can be newer than the index after a crash mid-write. A `modify` is queued only when the object has no pending op.
+- **Desktop trash.** `.Trash-<uid>` entries are local-only, but their bodies and names are still encrypted on disk (R27). A rename into `files/` deletes from the vault, removes the matching `.trashinfo`, and queues kernel invalidations.
+- **Invalidation queue.** Kernel invalidations go through a bounded queue drained by `RunInvalidations`, because notifying the kernel from inside a FUSE call deadlocks on its directory locks.
