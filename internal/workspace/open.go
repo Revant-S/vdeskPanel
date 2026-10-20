@@ -80,10 +80,12 @@ func (w *Workspace) indexObject(ctx context.Context, id model.ObjectID) (index.O
 		return err
 	})
 	if errors.Is(err, index.ErrNotFound) {
-		return index.Object{}, fs.ErrNotExist
+		return index.Object{}, errNotIndexed
 	}
 	return object, err
 }
+
+var errNotIndexed = fmt.Errorf("workspace: object not in index: %w", fs.ErrNotExist)
 
 func (h *handle) ReadAt(ctx context.Context, p []byte, offset int64) (int, error) {
 	n, err := h.entry.ReadAt(ctx, p, offset)
