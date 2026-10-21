@@ -45,6 +45,7 @@ type DeleteClassifier interface {
 // ReadObserver learns which processes read which byte ranges, for move-out detection.
 type ReadObserver interface {
 	ObserveRead(id model.ObjectID, processID uint32, offset, length, size int64)
+	ObserveCachedOpen(id model.ObjectID, processID uint32)
 }
 
 type Deps struct {

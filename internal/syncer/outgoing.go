@@ -34,6 +34,8 @@ type OutgoingDeps struct {
 	Random    io.Reader
 	Now       func() time.Time
 	Logger    *slog.Logger
+	// OnMovedOut is told once per item that left the vault, after it is safe in the trash.
+	OnMovedOut func(path string, folder bool, files int)
 }
 
 type OutgoingConfig struct {

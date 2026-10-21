@@ -63,6 +63,10 @@ func (a *remoteApply) op(op journal.Op) error {
 		return a.delete(op)
 	case journal.OpSuperseded:
 		return a.recordTrash(op)
+	case journal.OpTrashRestore:
+		return a.trashRestore(op)
+	case journal.OpTrashPurge:
+		return a.trashPurge(op)
 	}
 	return nil
 }
