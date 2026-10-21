@@ -110,7 +110,7 @@ func (d *Device) Start() {
 	content := func(use func(cipher.AEAD) error) error {
 		return n.Keyring.Use(func(k *crypto.Keys) error { return use(k.Content) })
 	}
-	d.Cache, err = cache.New(filepath.Join(d.Home, "cache"), cache.Deps{Fetcher: remote.Bodies{Client: d.Client, Index: d.Index},
+	d.Cache, err = cache.New(filepath.Join(d.Home, "cache"), cache.Deps{Fetcher: &remote.Bodies{Client: d.Client, Index: d.Index},
 		Bitmaps: d.Index, Content: content, Random: rand.Reader, Logger: n.Logger}, cache.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -136,13 +136,13 @@ func (d *Device) startSync(clock *journal.Clock) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d.Journal = journal.New(journal.Deps{Remote: remote.Log{Client: d.Client}, Store: d.Index, Keyring: n.Keyring, Codec: d.codec,
+	d.Journal = journal.New(journal.Deps{Remote: &remote.Log{Client: d.Client}, Store: d.Index, Keyring: n.Keyring, Codec: d.codec,
 		Clock: clock, Logger: n.Logger}, journal.Config{VaultID: n.VaultID, Device: d.ID, DeviceName: string(d.ID), OwnLogFolderID: d.LogFolder})
 	d.Outgoing = syncer.NewOutgoing(syncer.OutgoingDeps{Index: d.Index, Cache: d.Cache, Workspace: d.Workspace,
-		Remote: remote.Tree{Client: d.Client}, Journal: d.Journal, Keyring: n.Keyring, Random: rand.Reader, Now: time.Now, Logger: n.Logger},
+		Remote: &remote.Tree{Client: d.Client}, Journal: d.Journal, Keyring: n.Keyring, Random: rand.Reader, Now: time.Now, Logger: n.Logger},
 		syncer.OutgoingConfig{VaultID: n.VaultID, Device: d.ID, TreeFolderID: n.Folders.Tree, TrashFolderID: n.Folders.Trash,
 			Readiness: syncer.ReadinessConfig{MaxBatch: 200}, RetryBase: time.Millisecond, RetryMax: 10 * time.Millisecond})
-	d.Incoming = syncer.NewIncoming(syncer.IncomingDeps{Index: d.Index, Source: remote.Changes{Client: d.Client}, Journal: d.Journal,
+	d.Incoming = syncer.NewIncoming(syncer.IncomingDeps{Index: d.Index, Source: &remote.Changes{Client: d.Client}, Journal: d.Journal,
 		Applier: d.Workspace, Exclusive: d.Outgoing.Exclusive, NotFound: remote.IsNotFound, Now: time.Now, Logger: n.Logger},
 		syncer.IncomingConfig{Device: d.ID, LogFolderID: n.Folders.Log, OwnLogFolderID: d.LogFolder})
 }

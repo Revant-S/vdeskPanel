@@ -18,8 +18,8 @@ type listing map[string]model.RemoteFile
 
 // checkListings walks the tree level by level with one listing per folder, then trash/. It
 // returns the bodies found on Drive with the checksum the index expects.
-func (v *Verifier) checkListings(ctx context.Context, s *snapshot, report *Report) ([]bodyCheck, error) {
-	var present []bodyCheck
+func (v *Verifier) checkListings(ctx context.Context, s *snapshot, report *Report) ([]*bodyCheck, error) {
+	var present []*bodyCheck
 	level := []folderVisit{{id: model.RootID, driveID: v.config.TreeFolderID}}
 	for len(level) > 0 {
 		listings, err := v.listFolders(ctx, level)
@@ -71,8 +71,8 @@ func (v *Verifier) list(ctx context.Context, driveID string) (listing, error) {
 }
 
 // compareFolder reports a missing folder once, without descending into it.
-func compareFolder(s *snapshot, expected []index.Object, remote listing, report *Report) ([]bodyCheck, []folderVisit) {
-	var present []bodyCheck
+func compareFolder(s *snapshot, expected []index.Object, remote listing, report *Report) ([]*bodyCheck, []folderVisit) {
+	var present []*bodyCheck
 	var subfolders []folderVisit
 	for _, object := range expected {
 		file, found := remote[object.DriveID]
@@ -98,7 +98,7 @@ func compareFolder(s *snapshot, expected []index.Object, remote listing, report 
 	return present, subfolders
 }
 
-func (v *Verifier) checkTrash(ctx context.Context, s *snapshot, report *Report) ([]bodyCheck, error) {
+func (v *Verifier) checkTrash(ctx context.Context, s *snapshot, report *Report) ([]*bodyCheck, error) {
 	if len(s.trash) == 0 {
 		return nil, nil
 	}
@@ -106,7 +106,7 @@ func (v *Verifier) checkTrash(ctx context.Context, s *snapshot, report *Report) 
 	if err != nil {
 		return nil, wrapRemote("list trash", err)
 	}
-	var present []bodyCheck
+	var present []*bodyCheck
 	for _, record := range s.trash {
 		if record.DriveID == "" {
 			continue

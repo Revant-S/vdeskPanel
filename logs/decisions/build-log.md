@@ -93,3 +93,12 @@ The owner asked to stop the agents to save tokens. Their unfinished work is comm
 - `feat/09-panel`: `panel/layout` only.
 
 `main` holds steps 0–6 plus the API contract, and every check passes. Next up: step 7 (trash restore, purge and expiry, move-out detection, notifications), then step 8 (daemon) and the rest of 8 and 9 from those branches.
+
+## Refactor: receivers (owner request)
+
+The owner asked for one receiver style, preferably pointers. Every type now uses pointer receivers throughout, with three deliberate exceptions:
+- **`model.Stamp`:** an immutable value like `time.Time`. Its value-receiver `MarshalText` is what makes a Stamp encode as text inside struct fields, and methods like `String` and `After` are called on non-addressable values. `TestStampEncodesAsTextInsideValues` pins this.
+- **`config.Duration`:** the same reason, for TOML.
+- **`drivefake.fieldMask`:** a map type, which is already a reference, so `len` and `range` need the value.
+
+Constructors and interface assertions changed to match, e.g. `crypto.NewNameCipher` returns `*NameCipher`, and `&remote.Tree{...}`.

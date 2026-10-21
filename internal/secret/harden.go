@@ -10,7 +10,7 @@ type HardeningReport struct {
 	AllMemoryLocked bool
 }
 
-func (r HardeningReport) KeysMaySwap() bool {
+func (r *HardeningReport) KeysMaySwap() bool {
 	return !r.AllMemoryLocked
 }
 

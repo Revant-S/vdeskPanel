@@ -14,6 +14,8 @@ import (
 	"github.com/cosmoboy/vault/internal/procfilter"
 )
 
+// Duration marshals with a value receiver so it encodes as text inside a Config value;
+// unmarshalling needs a pointer.
 type Duration struct {
 	time.Duration
 }
@@ -115,7 +117,7 @@ func Save(path string, config Config) error {
 	return os.Rename(temporary, path)
 }
 
-func (c Config) Validate() error {
+func (c *Config) Validate() error {
 	var problems []string
 	if !filepath.IsAbs(c.MountPoint) {
 		problems = append(problems, "mount_point must be an absolute path")

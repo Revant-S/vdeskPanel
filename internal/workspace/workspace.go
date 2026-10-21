@@ -73,7 +73,7 @@ type Config struct {
 	DeleteHold  time.Duration
 }
 
-func (c Config) desktopTrashName() string {
+func (c *Config) desktopTrashName() string {
 	return fmt.Sprintf(".Trash-%d", c.UID)
 }
 

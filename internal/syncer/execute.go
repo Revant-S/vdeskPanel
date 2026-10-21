@@ -84,12 +84,12 @@ type opStep struct {
 }
 
 // save records the op's progress and persists it at once.
-func (s opStep) save(ctx context.Context) error {
+func (s *opStep) save(ctx context.Context) error {
 	return s.outgoing.checkpoint(ctx, s.plan, s.index, *s.op)
 }
 
 // record writes the op's progress into the plan, to be persisted with the level.
-func (s opStep) record() error {
+func (s *opStep) record() error {
 	s.outgoing.batchMu.Lock()
 	defer s.outgoing.batchMu.Unlock()
 	s.plan.Ops[s.index] = *s.op
