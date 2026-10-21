@@ -86,3 +86,21 @@ func (e *EndpointConnector) Connect(ctx context.Context, _ oauth2.TokenSource) (
 	}
 	return c, nil
 }
+
+// UnavailableConnector stands in when Google sign-in is not configured, so the daemon still
+// starts and can explain the problem instead of exiting.
+type UnavailableConnector struct {
+	Reason error
+}
+
+func (u *UnavailableConnector) BeginSignIn(context.Context) (string, func(context.Context) (*oauth2.Token, error), error) {
+	return "", nil, fmt.Errorf("google sign-in is not configured: %w", u.Reason)
+}
+
+func (u *UnavailableConnector) TokenSource(_ context.Context, token *oauth2.Token) oauth2.TokenSource {
+	return oauth2.StaticTokenSource(token)
+}
+
+func (u *UnavailableConnector) Connect(context.Context, oauth2.TokenSource) (*drive.Client, error) {
+	return nil, fmt.Errorf("google sign-in is not configured: %w", u.Reason)
+}
