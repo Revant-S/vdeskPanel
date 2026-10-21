@@ -25,7 +25,9 @@ const (
 	// NetDropLocal forgets an object that never reached Drive.
 	NetDropLocal NetKind = "drop_local"
 	// NetNoop consumes ops that cancelled out, such as a move there and back.
-	NetNoop NetKind = "noop"
+	NetNoop    NetKind = "noop"
+	NetRestore NetKind = "restore"
+	NetPurge   NetKind = "purge"
 )
 
 // NetOp is what a batch does to one object, after its raw ops cancel or merge.
@@ -44,6 +46,8 @@ type NetOp struct {
 	FileCount   int                `json:"fileCount,omitempty"`
 	Version     model.Stamp        `json:"version"`
 	Seqs        []int64            `json:"seqs"`
+	TrashItem   string             `json:"trashItem,omitempty"`
+	RemoteID    string             `json:"remoteId,omitempty"`
 }
 
 // RemoteFacts tells the reducer what Drive already holds for an object before this batch.
@@ -93,6 +97,9 @@ func groupByObject(raw []index.PendingOp) ([]*objectOps, error) {
 }
 
 func reduceObject(group *objectOps, synced bool) []NetOp {
+	if kind := group.ops[len(group.ops)-1].Kind; kind == model.LocalRestore || kind == model.LocalPurge {
+		return trashNetOps(group)
+	}
 	var created, modified, attr, moved, deleted, absorbed, superseded bool
 	var firstFrom string
 	var last model.LocalOp
@@ -256,6 +263,21 @@ func withoutEmpty(net []NetOp) []NetOp {
 		if op.Kind != "" {
 			out = append(out, op)
 		}
+	}
+	return out
+}
+
+// trashNetOps keeps restores and purges as they are: each one is a single Drive call on a
+// trash item, already reflected locally.
+func trashNetOps(group *objectOps) []NetOp {
+	var out []NetOp
+	for i, op := range group.ops {
+		kind := NetRestore
+		if op.Kind == model.LocalPurge {
+			kind = NetPurge
+		}
+		out = append(out, NetOp{Kind: kind, ObjectID: group.id, Folder: op.Folder, Path: op.Path, TrashItem: op.TrashID,
+			RemoteID: op.DriveID, Version: group.raw[i].Stamp, Seqs: []int64{group.raw[i].Seq}})
 	}
 	return out
 }

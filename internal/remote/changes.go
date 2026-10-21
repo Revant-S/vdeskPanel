@@ -15,13 +15,13 @@ type Changes struct {
 	Client *drive.Client
 }
 
-var _ syncer.ChangeSource = Changes{}
+var _ syncer.ChangeSource = (*Changes)(nil)
 
-func (c Changes) StartPageToken(ctx context.Context) (string, error) {
+func (c *Changes) StartPageToken(ctx context.Context) (string, error) {
 	return c.Client.StartPageToken(ctx)
 }
 
-func (c Changes) Changes(ctx context.Context, token string) (model.ChangesPage, error) {
+func (c *Changes) Changes(ctx context.Context, token string) (model.ChangesPage, error) {
 	page, err := c.Client.Changes(ctx, token)
 	if errors.Is(err, drive.ErrPageTokenExpired) {
 		return page, fmt.Errorf("%w: %w", syncer.ErrChangesExpired, err)
@@ -29,6 +29,6 @@ func (c Changes) Changes(ctx context.Context, token string) (model.ChangesPage, 
 	return page, err
 }
 
-func (c Changes) ListChildren(ctx context.Context, folderID string) ([]model.RemoteFile, error) {
+func (c *Changes) ListChildren(ctx context.Context, folderID string) ([]model.RemoteFile, error) {
 	return c.Client.ListChildren(ctx, folderID)
 }

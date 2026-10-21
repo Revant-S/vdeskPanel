@@ -7,6 +7,8 @@ import (
 )
 
 // Stamp is a hybrid logical clock reading. Its string form sorts lexically in clock order.
+// Like time.Time it is an immutable value: its methods take value receivers so a Stamp
+// encodes as text wherever it sits, and only UnmarshalText needs a pointer.
 type Stamp struct {
 	WallMillis int64
 	Counter    uint16

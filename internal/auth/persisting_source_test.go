@@ -98,11 +98,11 @@ type failingSource struct{}
 
 var errRefreshFailed = errors.New("refresh failed")
 
-func (failingSource) Token() (*oauth2.Token, error) { return nil, errRefreshFailed }
+func (*failingSource) Token() (*oauth2.Token, error) { return nil, errRefreshFailed }
 
 func TestBaseErrorPassesThrough(t *testing.T) {
 	store := NewTokenStore(filepath.Join(t.TempDir(), "token.enc"), newTestKeyring(t))
-	if _, err := store.PersistingSource(failingSource{}).Token(); !errors.Is(err, errRefreshFailed) {
+	if _, err := store.PersistingSource(&failingSource{}).Token(); !errors.Is(err, errRefreshFailed) {
 		t.Fatalf("err = %v, want errRefreshFailed", err)
 	}
 }

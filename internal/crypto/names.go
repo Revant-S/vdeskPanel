@@ -26,11 +26,11 @@ type NameCipher struct {
 	random  io.Reader
 }
 
-func NewNameCipher(keys *Keys, random io.Reader) NameCipher {
-	return NameCipher{aead: keys.Name, vaultID: keys.VaultID, random: random}
+func NewNameCipher(keys *Keys, random io.Reader) *NameCipher {
+	return &NameCipher{aead: keys.Name, vaultID: keys.VaultID, random: random}
 }
 
-func (c NameCipher) EncryptName(id model.ObjectID, name string) (string, error) {
+func (c *NameCipher) EncryptName(id model.ObjectID, name string) (string, error) {
 	if err := ValidateName(name); err != nil {
 		return "", err
 	}
@@ -45,7 +45,7 @@ func (c NameCipher) EncryptName(id model.ObjectID, name string) (string, error) 
 	return base64.RawURLEncoding.EncodeToString(sealed), nil
 }
 
-func (c NameCipher) DecryptName(id model.ObjectID, encoded string) (string, error) {
+func (c *NameCipher) DecryptName(id model.ObjectID, encoded string) (string, error) {
 	sealed, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
 		return "", fmt.Errorf("decode name: %w", err)

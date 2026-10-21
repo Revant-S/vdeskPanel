@@ -85,3 +85,30 @@ Decisions and conflicts that came up while building, in order.
 - **Known limits:**
   - A remote move that would make a local folder cycle is refused with a warning, not reverted (R16 row 9).
   - A file moved out of a folder deleted elsewhere follows the folder delete only if the delete reached this device first.
+
+## Paused on 2026-10-21
+
+The owner asked to stop the agents to save tokens. Their unfinished work is committed as WIP (untested, may not build) on:
+- `feat/08d-api-cli`: API server files, not yet the client or CLI.
+- `feat/09-panel`: `panel/layout` only.
+
+`main` holds steps 0–6 plus the API contract, and every check passes. Next up: step 7 (trash restore, purge and expiry, move-out detection, notifications), then step 8 (daemon) and the rest of 8 and 9 from those branches.
+
+## Refactor: receivers (owner request)
+
+The owner asked for one receiver style, preferably pointers. Every type now uses pointer receivers throughout, with three deliberate exceptions:
+- **`model.Stamp`:** an immutable value like `time.Time`. Its value-receiver `MarshalText` is what makes a Stamp encode as text inside struct fields, and methods like `String` and `After` are called on non-addressable values. `TestStampEncodesAsTextInsideValues` pins this.
+- **`config.Duration`:** the same reason, for TOML.
+- **`drivefake.fieldMask`:** a map type, which is already a reference, so `len` and `range` need the value.
+
+Constructors and interface assertions changed to match, e.g. `crypto.NewNameCipher` returns `*NameCipher`, and `&remote.Tree{...}`.
+
+## Step 7: trash, move-out, notifications
+
+- **Trash actions live in the workspace.** Restore, purge, empty and expiry are workspace methods, because they change tree, index and cache together. They take effect locally at once and reach Drive and the log through the outgoing queue, as the `restore` and `purge` op kinds.
+- **Purge logging (R26).** A purge `Get`s the trash item first. If it's already gone (another device expired it), nothing is logged, so two devices expiring the same item leave one `trash_purge` in history. A test checks this.
+- **Restore while the original is live (A7).** v1 refuses with `ErrRestoreWhileLive` instead of minting a new oid: the restored body's BodyID isn't known without a download. To do later.
+- **Move-out detection.** `trash.MoveOutDetector` keys reads by process (R18, through `procfilter.Proc`). A read-only open that the kernel serves from its page cache counts as a whole read. A real `mv` to another filesystem is labelled moved out for files and folders, while `rm` stays deleted.
+- **Notifications.** `Outgoing.OnMovedOut` fires once per trash entry after the commit, so a coalesced folder gives one notification. The daemon will route it to `notify`.
+- **Bug fixed.** Finalize used to set any clean object to Local, so moving a cloud-only file marked it as downloaded. Now only Dirty objects become Local.
+- **Not done yet.** Orphan GC (R15) on the daily expiry pass.

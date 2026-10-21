@@ -15,6 +15,8 @@ const (
 	// LocalSupersede puts a version that lost a conflict into the trash. The object is a
 	// hidden holder: either a local body still to upload, or a Drive file already uploaded.
 	LocalSupersede LocalOpKind = "supersede"
+	LocalRestore   LocalOpKind = "restore"
+	LocalPurge     LocalOpKind = "purge"
 )
 
 type DeleteReason string
@@ -47,4 +49,6 @@ type LocalOp struct {
 	FromPath     string       `json:"fromPath,omitempty"`
 	ReplacedFrom ObjectID     `json:"replacedFrom,omitempty"`
 	Reason       DeleteReason `json:"reason,omitempty"`
+	TrashID      string       `json:"trashId,omitempty"`
+	DriveID      string       `json:"driveId,omitempty"`
 }

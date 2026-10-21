@@ -39,7 +39,7 @@ func newSyncedFixture(t *testing.T) *fixture {
 func (f *fixture) verify(deep bool) verify.Report {
 	f.t.Helper()
 	d := f.device
-	v := verify.New(verify.Deps{Index: d.Index, Remote: remote.Verify{Client: d.Client},
+	v := verify.New(verify.Deps{Index: d.Index, Remote: &remote.Verify{Client: d.Client},
 		Names: crypto.NewKeyringNames(f.network.Keyring, rand.Reader), Keyring: f.network.Keyring, Logger: f.network.Logger},
 		verify.Config{TreeFolderID: f.network.Folders.Tree, TrashFolderID: f.network.Folders.Trash, TempDir: f.t.TempDir()})
 	report, err := v.Verify(context.Background(), deep)

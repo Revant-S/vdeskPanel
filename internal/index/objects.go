@@ -83,6 +83,10 @@ func (t *Tx) ObjectsByDriveID(driveID string) ([]Object, error) {
 	return t.selectObjects(`WHERE drive_id = ? ORDER BY id`, driveID)
 }
 
+func (t *Tx) ObjectsWithTrashID(trashID string) ([]Object, error) {
+	return t.selectObjects(`WHERE trash_id = ? ORDER BY id`, trashID)
+}
+
 func (t *Tx) ObjectsInState(state model.LocalState) ([]Object, error) {
 	return t.selectObjects(`WHERE local_state = ? ORDER BY id`, state)
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/cosmoboy/vault/internal/vaultfile"
 )
 
-func (v *Verifier) checkBodies(ctx context.Context, checks []bodyCheck, report *Report) error {
+func (v *Verifier) checkBodies(ctx context.Context, checks []*bodyCheck, report *Report) error {
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(v.config.Downloads)
 	var mu sync.Mutex
@@ -41,7 +41,7 @@ func (v *Verifier) checkBodies(ctx context.Context, checks []bodyCheck, report *
 
 // checkBody downloads one ciphertext into a temporary file, which only ever holds data that
 // is already encrypted, and authenticates it there.
-func (v *Verifier) checkBody(ctx context.Context, check bodyCheck) (ProblemKind, int64, error) {
+func (v *Verifier) checkBody(ctx context.Context, check *bodyCheck) (ProblemKind, int64, error) {
 	file, err := os.CreateTemp(v.config.TempDir, "verify-*")
 	if err != nil {
 		return "", 0, fmt.Errorf("verify: create temp file: %w", err)
@@ -65,7 +65,7 @@ func (v *Verifier) checkBody(ctx context.Context, check bodyCheck) (ProblemKind,
 
 // authenticate fails only when the keyring is locked; anything wrong with the body itself is
 // returned as a problem kind.
-func (v *Verifier) authenticate(ciphertext io.ReaderAt, size int64, check bodyCheck) (ProblemKind, error) {
+func (v *Verifier) authenticate(ciphertext io.ReaderAt, size int64, check *bodyCheck) (ProblemKind, error) {
 	var kind ProblemKind
 	err := v.deps.Keyring.Use(func(keys *crypto.Keys) error {
 		header, plaintextSHA256, err := vaultfile.VerifyBody(ciphertext, size, keys.Content)

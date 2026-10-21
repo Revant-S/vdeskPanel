@@ -63,11 +63,11 @@ func ResolveLayout(home string) (Layout, error) {
 	return DefaultLayout()
 }
 
-func (l Layout) DataDirs() []string {
+func (l *Layout) DataDirs() []string {
 	return []string{filepath.Dir(l.ConfigFile), filepath.Dir(l.IndexFile), l.CacheDir, filepath.Dir(l.LogFile)}
 }
 
-func (l Layout) CreateDirs() error {
+func (l *Layout) CreateDirs() error {
 	for _, dir := range l.DataDirs() {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("create %s: %w", dir, err)

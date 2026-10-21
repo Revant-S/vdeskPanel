@@ -116,7 +116,7 @@ type NewFile struct {
 	Properties   map[string]string
 }
 
-func (f NewFile) toDrive(mimeType string) *drive.File {
+func (f *NewFile) toDrive(mimeType string) *drive.File {
 	file := &drive.File{
 		Id:            f.ID,
 		Name:          f.Name,

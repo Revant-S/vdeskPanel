@@ -44,6 +44,12 @@ func journalOps(plan *BatchPlan) []journal.Op {
 			if op.SubsumedBy == "" {
 				out = append(out, deleteOp(op))
 			}
+		case NetRestore:
+			out = append(out, journal.Op{Kind: journal.OpTrashRestore, ObjectID: op.ObjectID, ParentID: op.Object.ParentID,
+				EncName: op.Object.EncName, Path: op.Path, Folder: op.Folder, Trash: &journal.TrashRef{ID: op.TrashItem}, Version: op.Version})
+		case NetPurge:
+			out = append(out, journal.Op{Kind: journal.OpTrashPurge, ObjectID: op.ObjectID, Path: op.Path, Folder: op.Folder,
+				Trash: &journal.TrashRef{ID: op.TrashItem}, Version: op.Version})
 		case NetAbsorb:
 			out = append(out, journal.Op{Kind: journal.OpDelete, ObjectID: op.ObjectID, Path: op.Path,
 				Reason: "replaced", Version: op.Version})

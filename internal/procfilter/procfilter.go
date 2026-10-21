@@ -25,13 +25,13 @@ type Proc struct {
 	Root string
 }
 
-func SystemProc() Proc {
-	return Proc{Root: "/proc"}
+func SystemProc() *Proc {
+	return &Proc{Root: "/proc"}
 }
 
 // ProcessOf maps the thread ID FUSE reports to its process ID. Worker threads of one
 // program share a process ID but not a thread ID or thread name.
-func (p Proc) ProcessOf(threadID uint32) (uint32, error) {
+func (p *Proc) ProcessOf(threadID uint32) (uint32, error) {
 	file, err := os.Open(filepath.Join(p.Root, strconv.FormatUint(uint64(threadID), 10), "status"))
 	if err != nil {
 		return 0, fmt.Errorf("read thread status: %w", err)
@@ -47,7 +47,7 @@ func (p Proc) ProcessOf(threadID uint32) (uint32, error) {
 	return 0, fmt.Errorf("thread %d status has no Tgid", threadID)
 }
 
-func (p Proc) NameOf(processID uint32) (string, error) {
+func (p *Proc) NameOf(processID uint32) (string, error) {
 	data, err := os.ReadFile(filepath.Join(p.Root, strconv.FormatUint(uint64(processID), 10), "comm"))
 	if err != nil {
 		return "", fmt.Errorf("read process name: %w", err)
@@ -56,11 +56,11 @@ func (p Proc) NameOf(processID uint32) (string, error) {
 }
 
 type Filter struct {
-	proc   Proc
+	proc   *Proc
 	denied map[string]bool
 }
 
-func New(proc Proc, denied []string) *Filter {
+func New(proc *Proc, denied []string) *Filter {
 	names := make(map[string]bool, len(denied))
 	for _, name := range denied {
 		names[truncate(name)] = true
