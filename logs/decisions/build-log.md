@@ -112,3 +112,19 @@ Constructors and interface assertions changed to match, e.g. `crypto.NewNameCiph
 - **Notifications.** `Outgoing.OnMovedOut` fires once per trash entry after the commit, so a coalesced folder gives one notification. The daemon will route it to `notify`.
 - **Bug fixed.** Finalize used to set any clean object to Local, so moving a cloud-only file marked it as downloaded. Now only Dirty objects become Local.
 - **Not done yet.** Orphan GC (R15) on the daily expiry pass.
+
+## Step 8: api and daemon (in progress)
+
+- **API branch.** The stopped agent's server code was kept. The client, SSE consumer and round-trip tests were written to complete it.
+- **Sign-in before a vault exists.** The OAuth token can't be encrypted until a vault key exists, so between sign-in and create/join it lives only in daemon memory. Restarting in that window means signing in again.
+- **Clock persistence.** The HLC isn't persisted on every tick; that would write the index inside index transactions, which deadlocks on the single writer connection. On unlock it resumes from the newest stamp in the index: the latest own commit or pending op.
+- **Unlock checks (R23).** Unlock compares the Drive header with the local copy (vault ID and wrapped key). It refuses on a mismatch or a newer format, and offline it trusts the local copy.
+- **Lock order (R8).** Unmount, falling back to freeze plus lazy unmount when files are held open; then drain uploads (`lock_flush_timeout`), stop the workers, close storage, and destroy the keys last.
+- **Devices.** The device list comes from the log, plus this device. Spec §5 `devices/<id>.vdev` records aren't written yet; retire is a local mark only.
+- **Join mode.** Saved next to the cached header as `vault.header.mode`.
+- **End-to-end test.** `daemon` is tested with two real daemons and real FUSE mounts on one fake Drive: create, write through the mount, sync, lock (mount gone), wrong password refused, unlock, second device joins on demand and reads the file, and history names the first device.
+- **Binaries.** `vaultd` uses stdlib `flag` (two flags; cobra would be overkill) and logs JSON to `daemon.log`. Without Google credentials it still starts: sign-in then reports the problem (`UnavailableConnector`) instead of the daemon exiting.
+- **CLI.** `vault` (cobra) covers status, signin, create, join, unlock, lock, sync, verify, trash ls/restore/purge/empty, download, free and restore pause/resume. Download and free accept real mount paths. Without a terminal, passwords are read as one line from stdin so scripts can pipe them in.
+- **Instance directories.** These are chmod 0700 on start. A home made with plain `mkdir` (0775) was refused by the socket check (R21); the instance owns that directory, so it fixes the mode instead.
+- **Smoke test with real processes.** `tools/drivefake` plus two `vaultd --home` processes driven by the `vault` CLI: sign in, create, write via `~/Vault`, sync, lock (mount empty), unlock, `verify --deep`; B joins on demand, reads A's file and edits it; A sees B's edit.
+- **Install.** `make install` puts the binaries in `~/.local/bin` and the unit in `~/.config/systemd/user`.
