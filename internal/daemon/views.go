@@ -87,8 +87,12 @@ func (d *Daemon) Commits(ctx context.Context, before string, limit int, filter s
 	page := api.CommitPage{}
 	for len(page.Commits) < limit {
 		records, err := s.commitsBefore(ctx, cursor, limit)
-		if err != nil || len(records) == 0 {
+		if err != nil {
 			return page, err
+		}
+		if len(records) == 0 {
+			page.NextBefore = ""
+			break
 		}
 		for _, record := range records {
 			cursor = record.Clock
@@ -175,6 +179,9 @@ func (d *Daemon) Devices(ctx context.Context) ([]api.DeviceView, error) {
 		}
 		return err
 	})
+	if byID[string(d.device)] == nil {
+		byID[string(d.device)] = &api.DeviceView{ID: string(d.device), Name: d.config.DeviceName, FirstSeen: d.Now()}
+	}
 	var out []api.DeviceView
 	for _, device := range byID {
 		device.This, device.Retired = device.ID == string(d.device), retired[device.ID]
