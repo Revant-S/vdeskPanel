@@ -118,35 +118,37 @@ func (w *Workspace) persistRestore(ctx context.Context, record index.TrashRecord
 	})
 }
 
-// insertRestored adds a restored object and everything under it back into the tree.
 func (w *Workspace) insertRestored(ctx context.Context, top model.ObjectID) error {
-	return w.Index.View(ctx, func(tx *index.Tx) error {
-		queue := []model.ObjectID{top}
-		for len(queue) > 0 {
-			object, err := tx.Object(queue[0])
-			queue = queue[1:]
-			if err != nil {
-				return err
-			}
-			name, err := w.Names.DecryptName(object.ID, object.EncName)
-			if err != nil {
-				return err
-			}
-			if err := w.tree.Insert(entryOfObject(object, name)); err != nil {
-				return err
-			}
-			children, err := tx.ChildrenOf(object.ID)
-			if err != nil {
-				return err
-			}
-			for _, child := range children {
-				if isLive(child) {
-					queue = append(queue, child.ID)
-				}
+	return w.Index.View(ctx, func(tx *index.Tx) error { return w.insertSubtree(tx, top) })
+}
+
+// insertSubtree adds an object and everything live under it back into the tree.
+func (w *Workspace) insertSubtree(tx *index.Tx, top model.ObjectID) error {
+	queue := []model.ObjectID{top}
+	for len(queue) > 0 {
+		object, err := tx.Object(queue[0])
+		queue = queue[1:]
+		if err != nil {
+			return err
+		}
+		name, err := w.Names.DecryptName(object.ID, object.EncName)
+		if err != nil {
+			return err
+		}
+		if err := w.tree.Insert(entryOfObject(object, name)); err != nil {
+			return err
+		}
+		children, err := tx.ChildrenOf(object.ID)
+		if err != nil {
+			return err
+		}
+		for _, child := range children {
+			if isLive(child) {
+				queue = append(queue, child.ID)
 			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // PurgeTrash deletes a trash item for good. Locally it is gone at once; the Drive delete

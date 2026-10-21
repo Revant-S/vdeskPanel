@@ -125,7 +125,7 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 	case op.Kind == NetDelete:
 		return o.recordTrash(tx, op, object, trashIDs)
 	}
-	if o.isClean(tx, plan.ID, op.ObjectID) {
+	if object.State == model.Dirty && o.isClean(tx, plan.ID, op.ObjectID) {
 		object.State = model.Local
 	}
 	return tx.PutObject(object)

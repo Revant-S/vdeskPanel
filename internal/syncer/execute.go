@@ -112,8 +112,32 @@ func (o *Outgoing) executeOp(ctx context.Context, step opStep) error {
 		return ignoreNotFound(err)
 	case op.Kind == NetDelete && op.SubsumedBy == "":
 		return o.trashRemote(ctx, step)
+	case op.Kind == NetRestore:
+		return o.restoreRemote(ctx, plan, op)
+	case op.Kind == NetPurge:
+		return o.purgeRemote(ctx, op)
 	}
 	return nil
+}
+
+func (o *Outgoing) restoreRemote(ctx context.Context, plan *BatchPlan, op *BatchOp) error {
+	parent, err := o.parentDriveID(ctx, plan, op.Object.ParentID)
+	if err != nil {
+		return err
+	}
+	return o.placeRemote(ctx, op.RemoteID, op.Object.EncName, parent, map[string]string{"tid": ""})
+}
+
+// purgeRemote deletes a trash item. If another device purged it first, nothing is logged,
+// so a race between devices leaves one purge in the history, not several.
+func (o *Outgoing) purgeRemote(ctx context.Context, op *BatchOp) error {
+	if _, err := o.Remote.Get(ctx, op.RemoteID); errors.Is(err, ErrRemoteNotFound) {
+		op.Skipped = true
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return ignoreNotFound(o.Remote.Delete(ctx, op.RemoteID))
 }
 
 func (o *Outgoing) createFolder(ctx context.Context, plan *BatchPlan, op *BatchOp) error {
