@@ -1,6 +1,6 @@
 STATICCHECK := go tool staticcheck
 
-.PHONY: check fmt-check vet lint test test-bulk build e2e panel
+.PHONY: check fmt-check vet lint test test-bulk build install e2e panel
 
 check: fmt-check vet lint test
 
@@ -23,6 +23,13 @@ test-bulk:
 
 build:
 	CGO_ENABLED=0 go build -o bin/ ./cmd/...
+
+install: build
+	install -Dm755 bin/vaultd $(HOME)/.local/bin/vaultd
+	install -Dm755 bin/vault $(HOME)/.local/bin/vault
+	install -Dm644 packaging/systemd/vaultd.service $(HOME)/.config/systemd/user/vaultd.service
+	systemctl --user daemon-reload
+	@echo "Start it with: systemctl --user enable --now vaultd"
 
 e2e:
 	go test -tags e2e,devdrive ./test/e2e/...
