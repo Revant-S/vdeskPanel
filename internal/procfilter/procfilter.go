@@ -25,8 +25,8 @@ type Proc struct {
 	Root string
 }
 
-func SystemProc() Proc {
-	return Proc{Root: "/proc"}
+func SystemProc() *Proc {
+	return &Proc{Root: "/proc"}
 }
 
 // ProcessOf maps the thread ID FUSE reports to its process ID. Worker threads of one
@@ -56,11 +56,11 @@ func (p *Proc) NameOf(processID uint32) (string, error) {
 }
 
 type Filter struct {
-	proc   Proc
+	proc   *Proc
 	denied map[string]bool
 }
 
-func New(proc Proc, denied []string) *Filter {
+func New(proc *Proc, denied []string) *Filter {
 	names := make(map[string]bool, len(denied))
 	for _, name := range denied {
 		names[truncate(name)] = true

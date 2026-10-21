@@ -23,6 +23,7 @@ func (o *Outgoing) finalizeBatch(ctx context.Context, plan *BatchPlan) error {
 	for _, op := range plan.Ops {
 		o.settleLocalBody(ctx, plan, op)
 	}
+	defer o.announceMovedOut(plan)
 	return o.Index.Update(ctx, func(tx *index.Tx) error {
 		trashIDs := map[model.ObjectID]string{}
 		for _, op := range plan.Ops {
@@ -163,4 +164,15 @@ func (o *Outgoing) isClean(tx *index.Tx, batchID string, id model.ObjectID) bool
 		}
 	}
 	return !o.Workspace.HasOpenWriter(id)
+}
+
+func (o *Outgoing) announceMovedOut(plan *BatchPlan) {
+	if o.OnMovedOut == nil {
+		return
+	}
+	for _, op := range plan.Ops {
+		if op.Kind == NetDelete && op.SubsumedBy == "" && op.Reason == model.ReasonMovedOut && !op.Skipped {
+			o.OnMovedOut(op.Path, op.Folder, max(op.FileCount, 1))
+		}
+	}
 }

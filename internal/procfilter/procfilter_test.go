@@ -29,7 +29,7 @@ func TestWorkerThreadOfDeniedProgramIsDenied(t *testing.T) {
 	root := t.TempDir()
 	writeFakeProcess(t, root, 4242, 4200, "pool-0", "tumblerd")
 	writeFakeProcess(t, root, 5151, 5100, "gmain", "vlc")
-	filter := New(Proc{Root: root}, DefaultDenyList())
+	filter := New(&Proc{Root: root}, DefaultDenyList())
 	if !filter.Denies(4242) {
 		t.Fatal("tumblerd worker thread was allowed")
 	}
@@ -44,7 +44,7 @@ func TestWorkerThreadOfDeniedProgramIsDenied(t *testing.T) {
 func TestLongNamesMatchAfterKernelTruncation(t *testing.T) {
 	root := t.TempDir()
 	writeFakeProcess(t, root, 10, 10, "ffmpegthumbnail", "ffmpegthumbnail")
-	if !New(Proc{Root: root}, DefaultDenyList()).Denies(10) {
+	if !New(&Proc{Root: root}, DefaultDenyList()).Denies(10) {
 		t.Fatal("ffmpegthumbnailer not matched after truncation to 15 bytes")
 	}
 }
