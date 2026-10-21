@@ -2,6 +2,7 @@ package model
 
 import (
 	"bytes"
+	"encoding/json"
 	"sort"
 	"strings"
 	"testing"
@@ -79,5 +80,15 @@ func TestStampJSONText(t *testing.T) {
 	}
 	if text, _ := (Stamp{}).MarshalText(); len(text) != 0 {
 		t.Fatalf("zero stamp text = %q", text)
+	}
+}
+
+func TestStampEncodesAsTextInsideValues(t *testing.T) {
+	type holder struct {
+		Version Stamp `json:"ver"`
+	}
+	data, err := json.Marshal(holder{Version: Stamp{WallMillis: 1, Counter: 2, Device: "d-x"}})
+	if err != nil || string(data) != `{"ver":"0000000000001.0002.d-x"}` {
+		t.Fatalf("json = %s, %v", data, err)
 	}
 }

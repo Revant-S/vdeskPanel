@@ -17,15 +17,15 @@ type Tree struct {
 	Client *drive.Client
 }
 
-var _ syncer.RemoteStore = Tree{}
+var _ syncer.RemoteStore = (*Tree)(nil)
 
-func (t Tree) GenerateIDs(ctx context.Context, count int) ([]string, error) {
+func (t *Tree) GenerateIDs(ctx context.Context, count int) ([]string, error) {
 	ids, err := t.Client.GenerateIDs(ctx, count)
 	return ids, translate(err)
 }
 
 // CreateFolder treats an existing folder with the same pre-generated ID as already created.
-func (t Tree) CreateFolder(ctx context.Context, spec syncer.RemoteSpec) (model.RemoteFile, error) {
+func (t *Tree) CreateFolder(ctx context.Context, spec syncer.RemoteSpec) (model.RemoteFile, error) {
 	file, err := t.Client.CreateFolder(ctx, newFile(spec))
 	if errors.Is(err, drive.ErrAlreadyExists) {
 		return t.Get(ctx, spec.ID)
@@ -33,37 +33,37 @@ func (t Tree) CreateFolder(ctx context.Context, spec syncer.RemoteSpec) (model.R
 	return file, translate(err)
 }
 
-func (t Tree) CreateSmallFile(ctx context.Context, spec syncer.RemoteSpec, content io.ReaderAt, size int64) (model.RemoteFile, error) {
+func (t *Tree) CreateSmallFile(ctx context.Context, spec syncer.RemoteSpec, content io.ReaderAt, size int64) (model.RemoteFile, error) {
 	file, err := t.Client.CreateSmallFile(ctx, newFile(spec), content, size)
 	return file, translate(err)
 }
 
-func (t Tree) StartResumableUpload(ctx context.Context, spec syncer.RemoteSpec, size int64) (syncer.UploadSession, error) {
+func (t *Tree) StartResumableUpload(ctx context.Context, spec syncer.RemoteSpec, size int64) (syncer.UploadSession, error) {
 	session, err := t.Client.StartResumableUpload(ctx, newFile(spec), size)
 	return syncer.UploadSession{URI: session.URI, Size: session.Size}, translate(err)
 }
 
-func (t Tree) ResumeUpload(ctx context.Context, session syncer.UploadSession, content io.ReaderAt, onConfirmed func(int64)) (model.RemoteFile, error) {
+func (t *Tree) ResumeUpload(ctx context.Context, session syncer.UploadSession, content io.ReaderAt, onConfirmed func(int64)) (model.RemoteFile, error) {
 	file, err := t.Client.ResumeUpload(ctx, drive.UploadSession{URI: session.URI, Size: session.Size}, content, onConfirmed)
 	return file, translate(err)
 }
 
-func (t Tree) Copy(ctx context.Context, sourceID string, spec syncer.RemoteSpec) (model.RemoteFile, error) {
+func (t *Tree) Copy(ctx context.Context, sourceID string, spec syncer.RemoteSpec) (model.RemoteFile, error) {
 	file, err := t.Client.Copy(ctx, sourceID, newFile(spec))
 	return file, translate(err)
 }
 
-func (t Tree) Update(ctx context.Context, id string, change syncer.RemoteChange) (model.RemoteFile, error) {
+func (t *Tree) Update(ctx context.Context, id string, change syncer.RemoteChange) (model.RemoteFile, error) {
 	file, err := t.Client.Update(ctx, id, drive.MetadataChange{Name: change.Name, AddParents: change.AddParents,
 		RemoveParents: change.RemoveParents, Properties: change.Properties, ModifiedTime: change.ModifiedTime})
 	return file, translate(err)
 }
 
-func (t Tree) Delete(ctx context.Context, id string) error {
+func (t *Tree) Delete(ctx context.Context, id string) error {
 	return translate(t.Client.Delete(ctx, id))
 }
 
-func (t Tree) Get(ctx context.Context, id string) (model.RemoteFile, error) {
+func (t *Tree) Get(ctx context.Context, id string) (model.RemoteFile, error) {
 	file, err := t.Client.Get(ctx, id)
 	return file, translate(err)
 }

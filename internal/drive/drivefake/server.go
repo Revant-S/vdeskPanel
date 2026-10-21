@@ -53,7 +53,7 @@ func New(options ...Option) *Server {
 func (s *Server) Handler() http.Handler { return s }
 
 func (s *Server) HTTPClient() *http.Client {
-	return &http.Client{Transport: inProcessTransport{handler: s}}
+	return &http.Client{Transport: &inProcessTransport{handler: s}}
 }
 
 func (s *Server) Endpoint() string { return InProcessURL + "/drive/v3/" }
@@ -223,7 +223,7 @@ type inProcessTransport struct {
 	handler http.Handler
 }
 
-func (t inProcessTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *inProcessTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err := req.Context().Err(); err != nil {
 		if req.Body != nil {
 			_ = req.Body.Close()

@@ -72,7 +72,7 @@ func VerifyBody(r io.ReaderAt, ciphertextSize int64, content cipher.AEAD) (Heade
 	if err != nil {
 		return Header{}, [32]byte{}, err
 	}
-	body, err := OpenBody(readOnlyStorage{r}, content, plaintextSize, nil)
+	body, err := OpenBody(&readOnlyStorage{r}, content, plaintextSize, nil)
 	if err != nil {
 		return Header{}, [32]byte{}, err
 	}
@@ -96,10 +96,10 @@ type readOnlyStorage struct {
 	io.ReaderAt
 }
 
-func (readOnlyStorage) WriteAt([]byte, int64) (int, error) {
+func (*readOnlyStorage) WriteAt([]byte, int64) (int, error) {
 	return 0, fmt.Errorf("vaultfile: storage is read-only")
 }
 
-func (readOnlyStorage) Truncate(int64) error {
+func (*readOnlyStorage) Truncate(int64) error {
 	return fmt.Errorf("vaultfile: storage is read-only")
 }

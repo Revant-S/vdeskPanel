@@ -30,7 +30,7 @@ type Header struct {
 	WrappedFileKey []byte
 }
 
-func (h Header) marshal() []byte {
+func (h *Header) marshal() []byte {
 	out := make([]byte, HeaderSize)
 	copy(out, magic)
 	binary.BigEndian.PutUint16(out[4:], h.Version)
@@ -77,7 +77,7 @@ func newHeader(content cipher.AEAD, random io.Reader) (Header, *secret.Key, erro
 	return h, fileKey, nil
 }
 
-func (h Header) unwrapFileKey(content cipher.AEAD) (*secret.Key, error) {
+func (h *Header) unwrapFileKey(content cipher.AEAD) (*secret.Key, error) {
 	key, err := crypto.UnwrapKey(content, h.WrappedFileKey, crypto.FileKeyAD(h.Version, h.BodyID))
 	if err != nil {
 		return nil, fmt.Errorf("unwrap file key: %w", ErrTampered)

@@ -17,9 +17,9 @@ type Bodies struct {
 	Index  *index.Store
 }
 
-var _ cache.SegmentFetcher = Bodies{}
+var _ cache.SegmentFetcher = (*Bodies)(nil)
 
-func (b Bodies) FetchRange(ctx context.Context, id model.ObjectID, offset, length int64, w io.WriterAt) error {
+func (b *Bodies) FetchRange(ctx context.Context, id model.ObjectID, offset, length int64, w io.WriterAt) error {
 	var driveID string
 	err := b.Index.View(ctx, func(tx *index.Tx) error {
 		object, err := tx.Object(id)
@@ -32,7 +32,7 @@ func (b Bodies) FetchRange(ctx context.Context, id model.ObjectID, offset, lengt
 	if driveID == "" {
 		return fmt.Errorf("object %s has no remote body", id)
 	}
-	return b.Client.DownloadRange(ctx, driveID, offset, length, rangeRelative{w: w, start: offset})
+	return b.Client.DownloadRange(ctx, driveID, offset, length, &rangeRelative{w: w, start: offset})
 }
 
 // rangeRelative turns the Drive client's absolute offsets into the cache's offsets relative
@@ -42,6 +42,6 @@ type rangeRelative struct {
 	start int64
 }
 
-func (r rangeRelative) WriteAt(p []byte, offset int64) (int, error) {
+func (r *rangeRelative) WriteAt(p []byte, offset int64) (int, error) {
 	return r.w.WriteAt(p, offset-r.start)
 }

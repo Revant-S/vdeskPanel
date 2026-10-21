@@ -74,7 +74,7 @@ type Report struct {
 	Problems        []Problem
 }
 
-func (r Report) OK() bool {
+func (r *Report) OK() bool {
 	return len(r.Problems) == 0
 }
 
@@ -136,7 +136,7 @@ type bodyCheck struct {
 	contentMAC []byte
 }
 
-func (c bodyCheck) problem(kind ProblemKind) Problem {
+func (c *bodyCheck) problem(kind ProblemKind) Problem {
 	return Problem{ID: c.id, Path: c.path, Kind: kind, Trashed: c.trashed}
 }
 
