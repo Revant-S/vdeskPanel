@@ -102,3 +102,13 @@ The owner asked for one receiver style, preferably pointers. Every type now uses
 - **`drivefake.fieldMask`:** a map type, which is already a reference, so `len` and `range` need the value.
 
 Constructors and interface assertions changed to match, e.g. `crypto.NewNameCipher` returns `*NameCipher`, and `&remote.Tree{...}`.
+
+## Step 7: trash, move-out, notifications
+
+- **Trash actions live in the workspace.** Restore, purge, empty and expiry are workspace methods, because they change tree, index and cache together. They take effect locally at once and reach Drive and the log through the outgoing queue, as the `restore` and `purge` op kinds.
+- **Purge logging (R26).** A purge `Get`s the trash item first. If it's already gone (another device expired it), nothing is logged, so two devices expiring the same item leave one `trash_purge` in history. A test checks this.
+- **Restore while the original is live (A7).** v1 refuses with `ErrRestoreWhileLive` instead of minting a new oid: the restored body's BodyID isn't known without a download. To do later.
+- **Move-out detection.** `trash.MoveOutDetector` keys reads by process (R18, through `procfilter.Proc`). A read-only open that the kernel serves from its page cache counts as a whole read. A real `mv` to another filesystem is labelled moved out for files and folders, while `rm` stays deleted.
+- **Notifications.** `Outgoing.OnMovedOut` fires once per trash entry after the commit, so a coalesced folder gives one notification. The daemon will route it to `notify`.
+- **Bug fixed.** Finalize used to set any clean object to Local, so moving a cloud-only file marked it as downloaded. Now only Dirty objects become Local.
+- **Not done yet.** Orphan GC (R15) on the daily expiry pass.
