@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -15,10 +16,11 @@ import (
 type cli struct {
 	home   string
 	client *api.Client
+	stdin  *bufio.Reader
 }
 
 func main() {
-	root := newRootCommand(&cli{})
+	root := newRootCommand(&cli{stdin: bufio.NewReader(os.Stdin)})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		fmt.Fprintln(os.Stderr, "vault:", describe(err))
 		os.Exit(1)

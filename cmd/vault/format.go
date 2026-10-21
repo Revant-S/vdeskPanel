@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -11,8 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
-
-var nowFunc = time.Now
 
 func formatStatus(status api.Status, now time.Time) string {
 	var out strings.Builder
@@ -69,19 +68,26 @@ func humanBytes(n int64) string {
 }
 
 // readPassword reads without echo. The caller sends the bytes, and the client wipes them.
-func readPassword(cmd *cobra.Command, prompt string) ([]byte, error) {
+// Without a terminal, one line is read from stdin so scripts can pipe the password in.
+func (c *cli) readPassword(cmd *cobra.Command, prompt string) ([]byte, error) {
 	fmt.Fprint(cmd.OutOrStdout(), prompt)
-	password, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Fprintln(cmd.OutOrStdout())
-	return password, err
+	defer fmt.Fprintln(cmd.OutOrStdout())
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return term.ReadPassword(int(os.Stdin.Fd()))
+	}
+	line, err := c.stdin.ReadBytes('\n')
+	if err != nil && len(line) == 0 {
+		return nil, err
+	}
+	return bytes.TrimRight(line, "\r\n"), nil
 }
 
-func readNewPassword(cmd *cobra.Command) ([]byte, error) {
-	first, err := readPassword(cmd, "New vault password (at least 12 characters): ")
+func (c *cli) readNewPassword(cmd *cobra.Command) ([]byte, error) {
+	first, err := c.readPassword(cmd, "New vault password (at least 12 characters): ")
 	if err != nil {
 		return nil, err
 	}
-	second, err := readPassword(cmd, "Repeat the password: ")
+	second, err := c.readPassword(cmd, "Repeat the password: ")
 	defer secret.Wipe(second)
 	if err != nil {
 		secret.Wipe(first)

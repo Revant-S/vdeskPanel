@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/cosmoboy/vault/internal/api"
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ func (c *cli) statusCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(cmd.OutOrStdout(), formatStatus(status, nowFunc()))
+			fmt.Fprint(cmd.OutOrStdout(), formatStatus(status, time.Now()))
 			return nil
 		}}
 }
@@ -39,7 +40,7 @@ func (c *cli) createCommand() *cobra.Command {
 	command := &cobra.Command{Use: "create", Short: "Create a new vault on this Google account", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "A lost password cannot be recovered. Keep it somewhere other than this laptop.")
-			password, err := readNewPassword(cmd)
+			password, err := c.readNewPassword(cmd)
 			if err != nil {
 				return err
 			}
@@ -54,7 +55,7 @@ func (c *cli) joinCommand() *cobra.Command {
 	var onDemand bool
 	command := &cobra.Command{Use: "join", Short: "Join the vault on this Google account", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			password, err := readPassword(cmd, "Vault password: ")
+			password, err := c.readPassword(cmd, "Vault password: ")
 			if err != nil {
 				return err
 			}
@@ -72,7 +73,7 @@ func (c *cli) joinCommand() *cobra.Command {
 func (c *cli) unlockCommand() *cobra.Command {
 	return &cobra.Command{Use: "unlock", Short: "Unlock and mount the vault", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			password, err := readPassword(cmd, "Vault password: ")
+			password, err := c.readPassword(cmd, "Vault password: ")
 			if err != nil {
 				return err
 			}
