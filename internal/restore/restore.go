@@ -62,6 +62,7 @@ type Restorer struct {
 	mu          sync.Mutex
 	paused      bool
 	wanted      map[model.ObjectID]bool
+	keptInCloud map[model.ObjectID]bool
 	failures    map[model.ObjectID]failure
 	progress    Progress
 	cancelRound context.CancelFunc

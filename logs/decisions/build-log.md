@@ -208,3 +208,11 @@ Fixes:
 - **Fix.** A deleted file's body is freed at finalize, so its state becomes CloudOnly. This is also more accurate than the Local that synced deletes used to keep. The restorer already skips trashed objects. On open, `settleTrashedDirty` repairs entries older builds left Dirty (trash ID and Drive ID set, no pending op), which unsticks A at its next start on this build.
 - **Tests.** The supersede test now asserts a zero backlog afterwards. A restart test puts a trash entry back to Dirty and expects it settled. Both fail without the fix.
 - **First seen.** A device's record is written only when it first runs a build that has records, so the record's first-seen date can be newer than the device's first commit (A showed the 23rd, though it started on the 22nd). The device list now takes the earlier of the two.
+
+## Fix: Free up space was undone by the restorer (acceptance find)
+
+- **Symptom on B.** `vault download <folder>`, then `vault free <folder>`: the folder kept showing as restoring, and its files kept downloading.
+- **Causes.** (1) `Download` adds files to the restorer's persisted `wanted` set, and `Free` never removed them. (2) In Restore-everything mode, the planner downloads every cloud-only live file, so on a device like A any freed file would come straight back. In that mode Free up space couldn't work at all.
+- **Fix.** `Restorer.KeepInCloud` (called by the daemon's Free before freeing) drops the files from `wanted`, adds them to a persisted `kept_in_cloud` set and cancels the round in flight. Restore-everything skips kept files; `Want`/`RequestLocal` (Download, or opening the file) take them out again. The set lives in kv as JSON beside `wanted`, the same mechanism and no schema change. A Free refused for Dirty files still leaves those files in the set, which is harmless: Dirty files are local anyway.
+- **Test.** Under Restore everything, a kept folder stays cloud-only across a restorer restart, and downloading a subfolder brings back only that subfolder.
+- **Also seen.** B downloaded a folder of 7,899 small files at about 1.8 files/s. That's bounded by requests per file, not bandwidth. To look into: requests per small-file download.

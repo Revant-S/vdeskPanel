@@ -12,32 +12,44 @@ import (
 )
 
 const (
-	pausedKey = "restore.paused"
-	wantedKey = "restore.wanted"
+	pausedKey      = "restore.paused"
+	wantedKey      = "restore.wanted"
+	keptInCloudKey = "restore.kept_in_cloud"
 )
 
 func (r *Restorer) loadControl(ctx context.Context) error {
-	var wanted []model.ObjectID
 	err := r.deps.Index.View(ctx, func(tx *index.Tx) error {
 		_, paused, err := tx.KV(pausedKey)
 		if err != nil {
 			return err
 		}
 		r.paused = paused
-		data, found, err := tx.KV(wantedKey)
-		if err != nil || !found {
+		if r.wanted, err = loadSet(tx, wantedKey); err != nil {
 			return err
 		}
-		return json.Unmarshal(data, &wanted)
+		r.keptInCloud, err = loadSet(tx, keptInCloudKey)
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("load restore state: %w", err)
 	}
-	r.wanted = make(map[model.ObjectID]bool, len(wanted))
-	for _, id := range wanted {
-		r.wanted[id] = true
-	}
 	return nil
+}
+
+func loadSet(tx *index.Tx, key string) (map[model.ObjectID]bool, error) {
+	set := map[model.ObjectID]bool{}
+	data, found, err := tx.KV(key)
+	if err != nil || !found {
+		return set, err
+	}
+	var ids []model.ObjectID
+	if err := json.Unmarshal(data, &ids); err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set, nil
 }
 
 // Pause stops the restore, cancelling downloads in flight, and stays paused across restarts.
@@ -79,10 +91,11 @@ func (r *Restorer) Want(ctx context.Context, ids ...model.ObjectID) error {
 	r.mu.Lock()
 	for _, id := range ids {
 		r.wanted[id] = true
+		delete(r.keptInCloud, id)
 		delete(r.failures, id)
 	}
 	r.mu.Unlock()
-	if err := r.persistWanted(ctx); err != nil {
+	if err := r.persistSets(ctx); err != nil {
 		return err
 	}
 	r.Kick()
@@ -92,6 +105,38 @@ func (r *Restorer) Want(ctx context.Context, ids ...model.ObjectID) error {
 // RequestLocal is the Download action: files are wanted as given, folders for every live
 // file below them.
 func (r *Restorer) RequestLocal(ctx context.Context, ids []model.ObjectID) error {
+	files, err := r.filesUnder(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("request local: %w", err)
+	}
+	return r.Want(ctx, files...)
+}
+
+// KeepInCloud is the Free up space action: the files stop being wanted, a restore of
+// everything leaves them alone, and downloads in flight stop, so a freed folder stays freed
+// until it is opened or downloaded again.
+func (r *Restorer) KeepInCloud(ctx context.Context, ids []model.ObjectID) error {
+	files, err := r.filesUnder(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("keep in cloud: %w", err)
+	}
+	r.mu.Lock()
+	for _, id := range files {
+		delete(r.wanted, id)
+		r.keptInCloud[id] = true
+	}
+	if r.cancelRound != nil {
+		r.cancelRound()
+	}
+	r.mu.Unlock()
+	if err := r.persistSets(ctx); err != nil {
+		return err
+	}
+	r.Kick()
+	return nil
+}
+
+func (r *Restorer) filesUnder(ctx context.Context, ids []model.ObjectID) ([]model.ObjectID, error) {
 	var files []model.ObjectID
 	err := r.deps.Index.View(ctx, func(tx *index.Tx) error {
 		for _, id := range ids {
@@ -103,10 +148,7 @@ func (r *Restorer) RequestLocal(ctx context.Context, ids []model.ObjectID) error
 		}
 		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("request local: %w", err)
-	}
-	return r.Want(ctx, files...)
+	return files, err
 }
 
 func liveFilesUnder(tx *index.Tx, id model.ObjectID) ([]model.ObjectID, error) {
@@ -151,31 +193,43 @@ func (r *Restorer) settleWanted(ctx context.Context, wanted, outstanding map[mod
 	if !changed {
 		return nil
 	}
-	return r.persistWanted(ctx)
+	return r.persistSets(ctx)
 }
 
-func (r *Restorer) persistWanted(ctx context.Context) error {
+func (r *Restorer) persistSets(ctx context.Context) error {
 	r.persistMu.Lock()
 	defer r.persistMu.Unlock()
 	r.mu.Lock()
-	ids := make([]model.ObjectID, 0, len(r.wanted))
-	for id := range r.wanted {
+	wanted, kept := sortedIDs(r.wanted), sortedIDs(r.keptInCloud)
+	r.mu.Unlock()
+	err := r.deps.Index.Update(ctx, func(tx *index.Tx) error {
+		if err := storeSet(tx, wantedKey, wanted); err != nil {
+			return err
+		}
+		return storeSet(tx, keptInCloudKey, kept)
+	})
+	if err != nil {
+		return fmt.Errorf("store restore choices: %w", err)
+	}
+	return nil
+}
+
+func sortedIDs(set map[model.ObjectID]bool) []model.ObjectID {
+	ids := make([]model.ObjectID, 0, len(set))
+	for id := range set {
 		ids = append(ids, id)
 	}
-	r.mu.Unlock()
 	slices.Sort(ids)
+	return ids
+}
+
+func storeSet(tx *index.Tx, key string, ids []model.ObjectID) error {
+	if len(ids) == 0 {
+		return tx.DeleteKV(key)
+	}
 	data, err := json.Marshal(ids)
 	if err != nil {
 		return err
 	}
-	err = r.deps.Index.Update(ctx, func(tx *index.Tx) error {
-		if len(ids) == 0 {
-			return tx.DeleteKV(wantedKey)
-		}
-		return tx.SetKV(wantedKey, data)
-	})
-	if err != nil {
-		return fmt.Errorf("store wanted files: %w", err)
-	}
-	return nil
+	return tx.SetKV(key, data)
 }
