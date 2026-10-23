@@ -97,8 +97,8 @@ func groupByObject(raw []index.PendingOp) ([]*objectOps, error) {
 }
 
 func reduceObject(group *objectOps, synced bool) []NetOp {
-	if kind := group.ops[len(group.ops)-1].Kind; kind == model.LocalRestore || kind == model.LocalPurge {
-		return trashNetOps(group)
+	if last := lastTrashOp(group.ops); last >= 0 {
+		return trashNetOps(&objectOps{id: group.id, ops: group.ops[:last+1], raw: group.raw[:last+1]})
 	}
 	var created, modified, attr, moved, deleted, absorbed, superseded bool
 	var firstFrom string
@@ -265,6 +265,18 @@ func withoutEmpty(net []NetOp) []NetOp {
 		}
 	}
 	return out
+}
+
+// lastTrashOp finds the last restore or purge. Ops after it, such as a rename or an edit of
+// the restored object, wait for the next batch: they apply to the object once it is live
+// on Drive and in the log, and reducing them with the restore would drop the restore.
+func lastTrashOp(ops []model.LocalOp) int {
+	for i := len(ops) - 1; i >= 0; i-- {
+		if ops[i].Kind == model.LocalRestore || ops[i].Kind == model.LocalPurge {
+			return i
+		}
+	}
+	return -1
 }
 
 // trashNetOps keeps restores and purges as they are: each one is a single Drive call on a

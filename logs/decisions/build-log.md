@@ -266,3 +266,12 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 
 - **Trash expiry and clock skew.** A remote trash entry's deleted-on date comes from the deleting device's wall clock. A device whose clock runs months behind makes others expire its trash items early. The HLC caps clocks ahead (now + 1 h) but not behind. A possible fix is to expire on the later of the commit time and the time this device applied it.
 - **Snapshot swap window.** `settleLocalBody` checks for open writers, then swaps the uploaded snapshot into the cache. A writer opening in the microseconds between the two could write to the replaced body. It would need a cache-level check-and-swap.
+
+## Trash and restore bug hunt (test/trash-restore)
+
+### Fix: a restore followed by a rename, edit or delete before the next sync was never logged
+
+- **Symptom.** Restore a file, then rename, edit or delete it before the restore syncs (seconds with the quiet period, longer while a big batch is uploading). Other devices kept the file in their trash and never saw it live again. With a delete, they ended up with two trash items for one Drive file.
+- **Cause.** The reducer treated an object as a restore only when its last op was the restore. Otherwise it reduced all ops together and the restore op vanished: the move or modify ran on a file still under `trash/`, and the commit carried no `trash_restore`.
+- **Fix.** `lastTrashOp`: a batch takes an object's ops up to its last restore or purge. The ops after it stay queued for the next batch, which runs once the object is live on Drive and in the log.
+- **Tests.** `TestRestoreThen{Rename,DeleteAgain,Edit}BeforeSync…`: B and a fresh device see the renamed or edited file, and a delete again leaves one trash item on each device. All three fail without the fix.
