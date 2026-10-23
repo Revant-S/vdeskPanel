@@ -261,3 +261,8 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 
 - **Remote delete over a local unsynced edit** (`trashLocally`): supersedes into a holder first, and the free runs after the move in the same ordered after-list.
 - **Remote modify over an unsynced edit** (`content`): newer remote wins with the local edit superseded; an older remote is ignored.
+
+### Noted, not fixed (neither can lose a live file)
+
+- **Trash expiry and clock skew.** A remote trash entry's deleted-on date comes from the deleting device's wall clock. A device whose clock runs months behind makes others expire its trash items early. The HLC caps clocks ahead (now + 1 h) but not behind. A possible fix is to expire on the later of the commit time and the time this device applied it.
+- **Snapshot swap window.** `settleLocalBody` checks for open writers, then swaps the uploaded snapshot into the cache. A writer opening in the microseconds between the two could write to the replaced body. It would need a cache-level check-and-swap.
