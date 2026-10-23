@@ -70,7 +70,7 @@ func (w *Workspace) moveObject(ctx context.Context, source model.Entry, newParen
 		return fs.ErrNotExist
 	}
 	if newParent.LocalOnly && !source.LocalOnly {
-		return w.deleteObject(ctx, source, 0)
+		return w.deleteSubtree(ctx, source, 0)
 	}
 	fromPath, err := w.tree.PathOf(source.ID)
 	if err != nil {

@@ -20,7 +20,7 @@ func (w *Workspace) isDesktopTrashFiles(id model.ObjectID) bool {
 }
 
 func (w *Workspace) trashFromDesktop(ctx context.Context, source model.Entry, filesIno model.Ino, trashedName string) error {
-	if err := w.deleteObject(ctx, source, 0); err != nil {
+	if err := w.deleteSubtree(ctx, source, 0); err != nil {
 		return err
 	}
 	w.queueEntryInvalidation(filesIno, trashedName)

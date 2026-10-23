@@ -139,3 +139,9 @@ Fixes:
 - **Token refresh.** `auth.WallClockSource` decides expiry by wall-clock time, and the Drive client forces a refresh on 401 (`drive.TokenRefresher`, passed through `PersistingSource`).
 - **Deferring failing ops.** Each op counts its failures in the batch. After 3 failed batch attempts, `deferFailingOps` takes it (and anything subsumed under it) out of the batch and reschedules it 15 minutes later. Its next batch starts a fresh upload session with new IDs, which is what Drive recommends when a session keeps returning 5xx. A test checks that a file the fake Drive always refuses leaves the other five uploaded.
 - **Open question.** Why Drive returned 500 for that upload session isn't proven; the token problem may be part of it. If it repeats, the log now says "deferring a change Drive keeps refusing" with the oid.
+
+## Fix: unlock failed with "parent ... file does not exist" (owner report)
+
+- **Cause.** Nautilus's Move to Trash on a folder renames it into `.Trash-<uid>/files/`. The workspace turned that rename into a delete of the folder object only, so its contents stayed live in the index under a deleted parent. The next unlock couldn't build the tree. The orphans' pending uploads also waited forever for a parent that would never reach Drive, which is part of the "not backed up" count. A move into any other local-only folder had the same bug.
+- **Fix.** Such renames now delete the whole subtree, children first (`deleteSubtree`), so the folder becomes one coalesced trash entry.
+- **Repair.** On open, `repairOrphans` moves live objects whose parent isn't live into a new top-level `Recovered <date>` folder, queued as create plus moves, so they become reachable and sync again. Nothing is deleted. The owner decides what to keep.
