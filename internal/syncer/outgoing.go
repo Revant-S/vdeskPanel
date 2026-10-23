@@ -158,6 +158,9 @@ func (o *Outgoing) Backlog(ctx context.Context) (files int, bytes int64, err err
 
 func (o *Outgoing) runBatch(ctx context.Context, plan *BatchPlan) error {
 	if !plan.Committed {
+		if err := o.deferFailingOps(ctx, plan); err != nil {
+			return err
+		}
 		if err := o.executeBatch(ctx, plan); err != nil {
 			return err
 		}

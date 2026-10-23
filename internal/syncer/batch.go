@@ -21,6 +21,7 @@ type BatchOp struct {
 	Session    UploadSession `json:"session,omitzero"`
 	Result     ContentResult `json:"result,omitzero"`
 	Done       bool          `json:"done,omitempty"`
+	Failures   int           `json:"failures,omitempty"`
 	Skipped    bool          `json:"skipped,omitempty"`
 }
 

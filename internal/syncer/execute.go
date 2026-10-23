@@ -31,6 +31,10 @@ func (o *Outgoing) executeBatch(ctx context.Context, plan *BatchPlan) error {
 			group.Go(func() error {
 				step := opStep{outgoing: o, plan: plan, index: i, op: &op}
 				if err := o.executeOp(groupCtx, step); err != nil {
+					if groupCtx.Err() == nil {
+						op.Failures++
+						step.record()
+					}
 					return fmt.Errorf("%s %s: %w", op.Kind, op.ObjectID, err)
 				}
 				op.Done = true
