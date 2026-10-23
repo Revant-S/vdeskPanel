@@ -43,12 +43,17 @@ func (g *GoogleConnector) BeginSignIn(ctx context.Context) (string, func(context
 }
 
 func (g *GoogleConnector) TokenSource(ctx context.Context, token *oauth2.Token) oauth2.TokenSource {
-	return g.OAuth.TokenSource(ctx, token)
+	return auth.NewWallClockSource(ctx, g.OAuth, token)
 }
 
+// Connect lets the Drive client force a token refresh on 401 when the source supports it.
 func (g *GoogleConnector) Connect(ctx context.Context, tokens oauth2.TokenSource) (*drive.Client, error) {
 	httpClient := &http.Client{Transport: &oauth2.Transport{Source: tokens, Base: http.DefaultTransport}}
-	return drive.NewClient(ctx, drive.DefaultConfig(), drive.Deps{HTTPClient: httpClient, Logger: g.Logger, Now: time.Now})
+	deps := drive.Deps{HTTPClient: httpClient, Logger: g.Logger, Now: time.Now}
+	if refresher, ok := tokens.(drive.TokenRefresher); ok {
+		deps.TokenRefresher = refresher
+	}
+	return drive.NewClient(ctx, drive.DefaultConfig(), deps)
 }
 
 // EndpointConnector talks to a Drive-compatible endpoint without OAuth. It exists for the
