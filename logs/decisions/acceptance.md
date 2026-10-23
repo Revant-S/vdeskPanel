@@ -29,3 +29,4 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 | Check | Result |
 |---|---|
 | Free up space returns the disk space and files stay browsable | **Pass** (after two fixes, see build-log). On B: a 188 MB file downloaded, then freed; cache 196 MB → 16 MB, no regrowth after 15 s, file still listed and readable on demand. The spec's 10 GB folder is a scaled-up version of the same path. |
+| Rename and move a folder of 1,000 files: metadata calls only, no uploads | **Pass.** On B, 1,000 files (uploaded in 426 s); `mv many → moved/renamed` synced in 4 s as one `move` op. All 1,000 Drive IDs and body MD5s unchanged before and after. |
