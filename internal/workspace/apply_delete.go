@@ -79,10 +79,24 @@ func (a *remoteApply) trashLocally(object index.Object, op journal.Op, reason mo
 		return err
 	}
 	object.DeleteVer, object.TrashID = op.Version, op.Trash.ID
+	if object.ID == op.ObjectID && op.Trash.BodyID != nil {
+		if err := a.takeTrashedVersion(&object, op.Trash); err != nil {
+			return err
+		}
+	}
 	if err := a.tx.PutObject(object); err != nil {
 		return err
 	}
 	return a.removeFromView(object.ID)
+}
+
+// takeTrashedVersion points the object at the version its deleter uploaded into the trash,
+// since the deleter removes the version this device knew.
+func (a *remoteApply) takeTrashedVersion(object *index.Object, trash *journal.TrashRef) error {
+	object.DriveID, object.BodyID, object.BodyMD5, object.ContentMAC = trash.DriveID, trash.BodyID, trash.BodyMD5, trash.ContentMAC
+	object.Size, object.State = trash.Size, model.CloudOnly
+	a.dropLocalBody(object.ID)
+	return a.tx.DeleteSegmentBitmap(object.ID)
 }
 
 func (a *remoteApply) removeFromView(id model.ObjectID) error {

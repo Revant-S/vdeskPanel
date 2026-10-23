@@ -62,6 +62,34 @@ func TestNewerEditInsideFolderDeletedElsewhere(t *testing.T) {
 	expectDeepFolderRestores(t, n, a, a, b)
 }
 
+func TestFolderDeleteKeepsAnUnsyncedEditInside(t *testing.T) {
+	n, a, b := twoDevicesWith(t, deepFolder)
+	a.WriteFile("/P/Q/deep.txt", []byte("deep edited on a"))
+	removeDeepFolder(a)
+	a.Sync()
+	if tree := assertConverged(t, n, a, b); len(tree) != 0 {
+		t.Fatalf("tree = %s, want everything deleted", describeTree(tree))
+	}
+	restoreAll(t, b)
+	found := false
+	for _, content := range assertConverged(t, n, a, b) {
+		found = found || content == "deep edited on a"
+	}
+	if !found {
+		t.Fatal("restoring the trash did not bring back the edit made just before the delete")
+	}
+}
+
+func TestFileEditedThenDeletedBeforeSyncRestoresElsewhere(t *testing.T) {
+	n, a, b := twoDevicesWith(t, func(a *devicetest.Device) { a.WriteFile("/doc.txt", []byte("base")) })
+	a.WriteFile("/doc.txt", []byte("edited just before the delete"))
+	a.Remove("/doc.txt")
+	a.Sync()
+	assertConverged(t, n, a, b)
+	restoreAll(t, b)
+	expectTree(t, assertConverged(t, n, a, b), map[string]string{"/doc.txt": "edited just before the delete"})
+}
+
 func TestEditInsideFolderDeletedHereButNotYetSynced(t *testing.T) {
 	n, a, b := twoDevicesWith(t, deepFolder)
 	removeDeepFolder(a)

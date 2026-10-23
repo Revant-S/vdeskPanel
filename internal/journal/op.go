@@ -60,4 +60,8 @@ type TrashRef struct {
 	Folder          bool           `json:"folder,omitempty"`
 	ObjectID        model.ObjectID `json:"oid,omitempty"`
 	ContentMAC      []byte         `json:"mac,omitempty"`
+	// BodyID and BodyMD5 are set when the trash holds a version uploaded with the delete,
+	// which no other device has seen yet.
+	BodyID  []byte `json:"bodyId,omitempty"`
+	BodyMD5 string `json:"md5,omitempty"`
 }

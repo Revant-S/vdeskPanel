@@ -93,6 +93,9 @@ func deleteOp(op BatchOp) journal.Op {
 	trash := &journal.TrashRef{ID: op.TrashID, DriveID: trashDriveID(op), Reason: string(op.Reason), OriginalPath: op.Path,
 		Size: op.Object.Size, FileCount: max(op.FileCount, boolCount(!op.Folder)), Folder: op.Folder, ObjectID: op.ObjectID,
 		ContentMAC: trashMAC(op)}
+	if op.TrashLatest && op.Result.DriveID != "" {
+		trash.BodyID, trash.BodyMD5, trash.Size = op.Result.BodyID, op.Result.BodyMD5, op.Result.Size
+	}
 	return journal.Op{Kind: kind, ObjectID: op.ObjectID, Path: op.Path, Folder: op.Folder, Reason: string(op.Reason),
 		Trash: trash, FileCount: op.FileCount, Version: op.Version}
 }
