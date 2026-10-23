@@ -21,12 +21,14 @@ type remoteApply struct {
 	commit journal.Commit
 	tx     *index.Tx
 	after  []func()
+	// unmoved holds bodies a supersede failed to move to their holder; they are never freed.
+	unmoved map[model.ObjectID]bool
 }
 
 func (w *Workspace) ApplyRemoteCommit(ctx context.Context, commit journal.Commit) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	apply := &remoteApply{ws: w, ctx: ctx, commit: commit}
+	apply := &remoteApply{ws: w, ctx: ctx, commit: commit, unmoved: map[model.ObjectID]bool{}}
 	err := w.update(ctx, func(tx *index.Tx) error {
 		apply.tx = tx
 		for _, op := range commit.Ops {
@@ -79,7 +81,9 @@ func (a *remoteApply) load(id model.ObjectID) (index.Object, bool, error) {
 	return object, err == nil, err
 }
 
-// hasUnsyncedContent reports local content that Drive does not have yet.
+// hasUnsyncedContent reports local content that Drive does not have yet. A pending attribute
+// change is not content: it carries no bytes, the file may have no local body at all, and
+// it still applies on top of the remote version.
 func (a *remoteApply) hasUnsyncedContent(object index.Object) (bool, error) {
 	if object.State == model.Dirty {
 		return true, nil
@@ -87,7 +91,7 @@ func (a *remoteApply) hasUnsyncedContent(object index.Object) (bool, error) {
 	ops, err := a.tx.OpsForObject(object.ID)
 	for _, op := range ops {
 		switch model.LocalOpKind(op.Kind) {
-		case model.LocalCreate, model.LocalModify, model.LocalAttr:
+		case model.LocalCreate, model.LocalModify:
 			return true, nil
 		}
 	}
@@ -135,6 +139,10 @@ func (a *remoteApply) dropLocalBody(id model.ObjectID) {
 	a.after = append(a.after, func() {
 		if ino, ok := a.ws.inodes.existingInode(id); ok {
 			a.ws.queueContentInvalidation(ino)
+		}
+		if a.unmoved[id] {
+			a.ws.Logger.Error("kept a superseded local edit in place instead of freeing it", "oid", id, "path", a.ws.Cache.BodyPath(id))
+			return
 		}
 		if err := a.ws.Cache.Free(a.ctx, id); err != nil {
 			a.ws.Logger.Debug("free replaced body", "oid", id, "err", err)
