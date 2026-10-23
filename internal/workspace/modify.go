@@ -112,11 +112,11 @@ func (w *Workspace) settleTrashedDirty(ctx context.Context, object index.Object)
 }
 
 func (w *Workspace) recoverDirtyFile(ctx context.Context, object index.Object) error {
-	repaired, err := w.Cache.RecoverInterruptedRewrite(object.ID)
-	if err != nil {
-		return err
-	}
-	if repaired {
+	// A failed repair must never be what keeps the vault from opening; the body stays as it
+	// was, and reads report any damage as before.
+	if repaired, err := w.Cache.RecoverInterruptedRewrite(object.ID); err != nil {
+		w.Logger.Warn("repair a body whose rewrite a crash cut short", "oid", object.ID, "err", err)
+	} else if repaired {
 		w.Logger.Warn("repaired a body whose rewrite a crash cut short", "oid", object.ID)
 	}
 	size, err := w.bodySize(ctx, object)
