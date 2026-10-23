@@ -19,6 +19,11 @@ func formatStatus(status api.Status, now time.Time) string {
 	if status.State == api.StateMounted || status.State == api.StateRestoring {
 		fmt.Fprintf(&out, "Mounted at %s\n", status.MountPoint)
 		fmt.Fprintln(&out, backupLine(status, now))
+		if !status.Online {
+			fmt.Fprintln(&out, "Offline: changes upload when Drive is reachable again")
+		} else if status.BytesPerSecond > 0 {
+			fmt.Fprintf(&out, "Transferring %s/s\n", api.FormatBytes(status.BytesPerSecond))
+		}
 	}
 	if r := status.Restore; r != nil {
 		fmt.Fprintf(&out, "Restoring: %d of %d files, %s of %s%s\n", r.FilesDone, r.FilesTotal, api.FormatBytes(r.BytesDone),
