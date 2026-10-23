@@ -378,3 +378,10 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Test.** `TestRestoreIntoFolderDeletedElsewhere`: both devices and a fresh one agree after restarts, and restoring `/D` brings back both files. It fails without the fix.
 - **Not fixed (noted).** When the folder's delete is still pending on the receiver (not yet synced), a move, create or restore into it gets the folder's delete stamp but no trash ID, and the folder's batch doesn't pick it up, so it isn't part of the trash entry there. This predates this branch (`hideUnder`); a fix would have the folder's finalize sweep such rows into its entry.
 - **Passed without change.** Restoring a folder, then adding, editing and renaming inside it before the sync (`TestRestoreFolderThenAddInsideBeforeSync`).
+
+### Noted, not fixed
+
+- **Row 7 notice.** When a folder delete takes a descendant that another device already edited and synced, that device trashes it silently; the table asks it to log `superseded (parent deleted on <device>)` and notify. Nothing is lost (the edit is in the folder's entry), so it's cosmetic.
+- **Commit size.** A folder delete's `Contents` lists every object it folded in, so an `rm -r` of tens of thousands of files makes one commit of a few hundred KB compressed. Fine for now; a pack or a cap would bound it.
+- **`TrashRef.PreviousDriveID`** is declared but never set or read.
+- **Passed without change:** editor save (rename over) and vim save racing a remote edit, move vs move, file delete vs newer move, move into a folder deleted elsewhere (both orders), folder rename while another device adds and edits inside, three devices editing one file, a device offline for 30+ commits with a folder rename in between, delete-and-recreate vs a remote edit.
