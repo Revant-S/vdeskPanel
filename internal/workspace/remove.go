@@ -98,3 +98,23 @@ func (w *Workspace) forgetEntry(id model.ObjectID) {
 	w.handles.detach(id)
 	w.inodes.forget(id)
 }
+
+// deleteSubtree deletes a folder and everything under it, children first, as rmdir after
+// emptying it would. It is how a folder leaves the vault by a rename into a local-only place.
+func (w *Workspace) deleteSubtree(ctx context.Context, top model.Entry, processID uint32) error {
+	var order []model.Entry
+	var collect func(entry model.Entry)
+	collect = func(entry model.Entry) {
+		for _, child := range w.tree.Children(entry.ID) {
+			collect(child)
+		}
+		order = append(order, entry)
+	}
+	collect(top)
+	for _, entry := range order {
+		if err := w.deleteObject(ctx, entry, processID); err != nil {
+			return err
+		}
+	}
+	return nil
+}

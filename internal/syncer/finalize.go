@@ -23,6 +23,7 @@ func (o *Outgoing) finalizeBatch(ctx context.Context, plan *BatchPlan) error {
 	for _, op := range plan.Ops {
 		o.settleLocalBody(ctx, plan, op)
 	}
+	defer o.announceMovedOut(plan)
 	return o.Index.Update(ctx, func(tx *index.Tx) error {
 		trashIDs := map[model.ObjectID]string{}
 		for _, op := range plan.Ops {
@@ -125,7 +126,7 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 	case op.Kind == NetDelete:
 		return o.recordTrash(tx, op, object, trashIDs)
 	}
-	if o.isClean(tx, plan.ID, op.ObjectID) {
+	if object.State == model.Dirty && o.isClean(tx, plan.ID, op.ObjectID) {
 		object.State = model.Local
 	}
 	return tx.PutObject(object)
@@ -163,4 +164,15 @@ func (o *Outgoing) isClean(tx *index.Tx, batchID string, id model.ObjectID) bool
 		}
 	}
 	return !o.Workspace.HasOpenWriter(id)
+}
+
+func (o *Outgoing) announceMovedOut(plan *BatchPlan) {
+	if o.OnMovedOut == nil {
+		return
+	}
+	for _, op := range plan.Ops {
+		if op.Kind == NetDelete && op.SubsumedBy == "" && op.Reason == model.ReasonMovedOut && !op.Skipped {
+			o.OnMovedOut(op.Path, op.Folder, max(op.FileCount, 1))
+		}
+	}
 }

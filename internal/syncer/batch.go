@@ -14,14 +14,16 @@ import (
 // each step, so a restart resumes exactly where the crash happened.
 type BatchOp struct {
 	NetOp
-	Object     ObjectFacts   `json:"object"`
-	NewDriveID string        `json:"newDriveId,omitempty"`
-	TrashID    string        `json:"trashId,omitempty"`
-	Snapshot   *SnapshotInfo `json:"snapshot,omitempty"`
-	Session    UploadSession `json:"session,omitzero"`
-	Result     ContentResult `json:"result,omitzero"`
-	Done       bool          `json:"done,omitempty"`
-	Skipped    bool          `json:"skipped,omitempty"`
+	Object          ObjectFacts   `json:"object"`
+	NewDriveID      string        `json:"newDriveId,omitempty"`
+	TrashID         string        `json:"trashId,omitempty"`
+	Snapshot        *SnapshotInfo `json:"snapshot,omitempty"`
+	Session         UploadSession `json:"session,omitzero"`
+	Result          ContentResult `json:"result,omitzero"`
+	Done            bool          `json:"done,omitempty"`
+	Failures        int           `json:"failures,omitempty"`
+	SessionFailures int           `json:"sessionFailures,omitempty"`
+	Skipped         bool          `json:"skipped,omitempty"`
 }
 
 // ObjectFacts is the object as it was when the batch formed.
@@ -132,4 +134,21 @@ func (o *Outgoing) loadOpenBatches(ctx context.Context) ([]*BatchPlan, error) {
 		return err
 	})
 	return plans, err
+}
+
+// BatchDriveIDs returns every Drive ID that open batches have reserved, created or are about
+// to replace, so a sweep of Drive never mistakes them for orphans.
+func (o *Outgoing) BatchDriveIDs(ctx context.Context) (map[string]bool, error) {
+	plans, err := o.loadOpenBatches(ctx)
+	ids := map[string]bool{}
+	for _, plan := range plans {
+		for _, op := range plan.Ops {
+			for _, id := range []string{op.NewDriveID, op.Object.DriveID, op.Result.DriveID} {
+				if id != "" {
+					ids[id] = true
+				}
+			}
+		}
+	}
+	return ids, err
 }

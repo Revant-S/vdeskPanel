@@ -45,6 +45,7 @@ type DeleteClassifier interface {
 // ReadObserver learns which processes read which byte ranges, for move-out detection.
 type ReadObserver interface {
 	ObserveRead(id model.ObjectID, processID uint32, offset, length, size int64)
+	ObserveCachedOpen(id model.ObjectID, processID uint32)
 }
 
 type Deps struct {
@@ -73,7 +74,7 @@ type Config struct {
 	DeleteHold  time.Duration
 }
 
-func (c Config) desktopTrashName() string {
+func (c *Config) desktopTrashName() string {
 	return fmt.Sprintf(".Trash-%d", c.UID)
 }
 
@@ -91,6 +92,10 @@ type Workspace struct {
 
 // Open loads the index into an in-memory tree, decrypting names in parallel.
 func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
+	repairer := &Workspace{Deps: deps, config: config}
+	if _, err := repairer.repairOrphans(ctx); err != nil {
+		return nil, fmt.Errorf("repair orphaned objects: %w", err)
+	}
 	built, err := tree.Build(ctx, liveRows(ctx, deps.Index), deps.Names.DecryptName, runtime.GOMAXPROCS(0))
 	if err != nil {
 		return nil, fmt.Errorf("build tree: %w", err)

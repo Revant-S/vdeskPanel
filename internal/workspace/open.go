@@ -55,7 +55,11 @@ func (w *Workspace) Open(ctx context.Context, ino model.Ino, writable, truncate 
 			return nil, false, err
 		}
 	}
-	return h, !writable && !remoteOnly, nil
+	keepCache := !writable && !remoteOnly
+	if keepCache && w.Reads != nil {
+		w.Reads.ObserveCachedOpen(entry.ID, caller.PID)
+	}
+	return h, keepCache, nil
 }
 
 func (w *Workspace) openCacheEntry(ctx context.Context, object index.Object, writable bool) (*cache.Entry, error) {

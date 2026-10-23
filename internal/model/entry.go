@@ -15,6 +15,6 @@ type Entry struct {
 	LocalOnly  bool
 }
 
-func (e Entry) IsFolder() bool {
+func (e *Entry) IsFolder() bool {
 	return e.Kind == KindFolder
 }

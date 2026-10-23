@@ -26,11 +26,18 @@ func callWithRetry[T any](ctx context.Context, c *Client, bucket *adaptiveBucket
 				return zero, backoff.Permanent(err)
 			}
 		}
-		result, err := attempt(ctx)
+		attemptCtx, cancel := c.attemptContext(ctx)
+		result, err := attempt(attemptCtx)
+		cancel()
 		if err == nil {
+			c.noteContact()
 			return result, nil
 		}
-		return result, c.classifyFailure(ctx, bucket, normalizeError(err), &refreshed)
+		err = normalizeError(err)
+		if apiErr := (*APIError)(nil); errors.As(err, &apiErr) {
+			c.noteContact()
+		}
+		return result, c.classifyFailure(ctx, bucket, err, &refreshed)
 	},
 		backoff.WithBackOff(newFullJitterBackOff(c.retry)),
 		backoff.WithMaxTries(c.retry.MaxAttempts),
@@ -91,4 +98,11 @@ func statusOf(err error) int {
 		return apiErr.Status
 	}
 	return 0
+}
+
+func (c *Client) attemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if c.retry.AttemptTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, c.retry.AttemptTimeout)
 }

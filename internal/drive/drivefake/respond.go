@@ -80,6 +80,7 @@ func writeMasked(w http.ResponseWriter, status int, value any, fields, defaultMa
 	writeJSON(w, status, mask.apply(generic))
 }
 
+// fieldMask is a map, which already behaves as a reference, so its methods take values.
 type fieldMask map[string]fieldMask
 
 func (m fieldMask) apply(value any) any {

@@ -157,7 +157,7 @@ func (d *Device) DecryptRemoteBody(driveID string) []byte {
 		if err != nil {
 			return err
 		}
-		body, err := vaultfile.OpenBody(readOnly{bytes.NewReader(encrypted.Bytes())}, k.Content, size, nil)
+		body, err := vaultfile.OpenBody(&readOnly{bytes.NewReader(encrypted.Bytes())}, k.Content, size, nil)
 		if err != nil {
 			return err
 		}
@@ -177,5 +177,5 @@ func (d *Device) DecryptRemoteBody(driveID string) []byte {
 
 type readOnly struct{ *bytes.Reader }
 
-func (readOnly) WriteAt([]byte, int64) (int, error) { return 0, io.ErrClosedPipe }
-func (readOnly) Truncate(int64) error               { return io.ErrClosedPipe }
+func (*readOnly) WriteAt([]byte, int64) (int, error) { return 0, io.ErrClosedPipe }
+func (*readOnly) Truncate(int64) error               { return io.ErrClosedPipe }

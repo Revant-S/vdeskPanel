@@ -64,15 +64,15 @@ func (s *snapshot) pathOf(id model.ObjectID) string {
 	return full
 }
 
-func (s *snapshot) fileCheck(object index.Object) bodyCheck {
-	return bodyCheck{id: object.ID, path: s.pathOf(object.ID), driveID: object.DriveID, bodyMD5: object.BodyMD5,
+func (s *snapshot) fileCheck(object index.Object) *bodyCheck {
+	return &bodyCheck{id: object.ID, path: s.pathOf(object.ID), driveID: object.DriveID, bodyMD5: object.BodyMD5,
 		bodyID: object.BodyID, contentMAC: object.ContentMAC}
 }
 
 // trashCheck describes a trash item. A trashed file's object row still holds its body
 // facts when it points at the same Drive file (D32); folders only need to exist.
-func (s *snapshot) trashCheck(record index.TrashRecord) (bodyCheck, bool) {
-	check := bodyCheck{id: record.ObjectID, path: record.OriginalPath, trashed: true, driveID: record.DriveID}
+func (s *snapshot) trashCheck(record index.TrashRecord) (*bodyCheck, bool) {
+	check := &bodyCheck{id: record.ObjectID, path: record.OriginalPath, trashed: true, driveID: record.DriveID}
 	object, ok := s.objects[record.ObjectID]
 	if record.Folder || !ok || object.DriveID != record.DriveID {
 		return check, false

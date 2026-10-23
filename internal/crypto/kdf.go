@@ -19,7 +19,7 @@ func DefaultKDFParams() KDFParams {
 
 // The upper bounds stop a hostile header from exhausting memory during unlock. A weak header
 // cannot be forged without the password, so the lower bounds only reject nonsense.
-func (p KDFParams) Validate() error {
+func (p *KDFParams) Validate() error {
 	switch {
 	case p.Time < 1 || p.Time > 10:
 		return fmt.Errorf("kdf time %d outside 1..10", p.Time)

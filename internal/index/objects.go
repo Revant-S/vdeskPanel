@@ -83,6 +83,10 @@ func (t *Tx) ObjectsByDriveID(driveID string) ([]Object, error) {
 	return t.selectObjects(`WHERE drive_id = ? ORDER BY id`, driveID)
 }
 
+func (t *Tx) ObjectsWithTrashID(trashID string) ([]Object, error) {
+	return t.selectObjects(`WHERE trash_id = ? ORDER BY id`, trashID)
+}
+
 func (t *Tx) ObjectsInState(state model.LocalState) ([]Object, error) {
 	return t.selectObjects(`WHERE local_state = ? ORDER BY id`, state)
 }
@@ -152,4 +156,22 @@ func (t *Tx) scanObject(row scanner) (Object, error) {
 	}
 	o.DeferredContent, err = t.open("objects", "deferred_content", string(o.ID), deferred)
 	return o, err
+}
+
+// ReferencedDriveIDs returns every Drive ID an object or trash row points at.
+func (t *Tx) ReferencedDriveIDs() (map[string]bool, error) {
+	rows, err := t.query(`SELECT drive_id FROM objects WHERE drive_id != '' UNION SELECT drive_id FROM trash WHERE drive_id != ''`)
+	if err != nil {
+		return nil, fmt.Errorf("referenced drive ids: %w", err)
+	}
+	defer rows.Close()
+	ids := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
 }

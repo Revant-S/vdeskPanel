@@ -9,10 +9,13 @@ type RetryConfig struct {
 	BaseDelay   time.Duration
 	MaxDelay    time.Duration
 	MaxAttempts uint
+	// AttemptTimeout bounds one attempt, so a connection that died without closing, as
+	// after a laptop sleeps, fails and is retried instead of hanging the caller forever.
+	AttemptTimeout time.Duration
 }
 
 func DefaultRetryConfig() RetryConfig {
-	return RetryConfig{BaseDelay: time.Second, MaxDelay: 64 * time.Second, MaxAttempts: 8}
+	return RetryConfig{BaseDelay: time.Second, MaxDelay: 64 * time.Second, MaxAttempts: 8, AttemptTimeout: 10 * time.Minute}
 }
 
 // fullJitterBackOff implements backoff.BackOff with "full jitter": each delay is uniform in

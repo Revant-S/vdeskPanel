@@ -9,9 +9,12 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/cosmoboy/vault/internal/fusefs/fusetest"
 	"github.com/cosmoboy/vault/internal/model"
+	"github.com/cosmoboy/vault/internal/procfilter"
+	"github.com/cosmoboy/vault/internal/trash"
 )
 
 func mountHome(t *testing.T) (*testHome, string) {
@@ -141,5 +144,30 @@ func TestRefusedOperationsThroughMount(t *testing.T) {
 	}
 	if err := syscall.Rmdir(root); err == nil {
 		t.Fatal("removed mount root")
+	}
+}
+
+func TestMoveOutIsRecognisedForFilesAndFolders(t *testing.T) {
+	home := newTestHome(t)
+	detector := trash.NewMoveOutDetector(procfilter.SystemProc(), 10*time.Second, time.Now)
+	home.ws.Reads, home.ws.Classify = detector, detector
+	root, mount := fusetest.Mount(t, home.ws)
+	home.ws.AttachInvalidator(mount)
+	shell(t, root, "printf 'clip' > clip.mp4 && mkdir Album && printf 1 > Album/a.jpg && printf 2 > Album/b.jpg && printf x > junk.tmp")
+	outside := t.TempDir()
+	shell(t, root, "mv clip.mp4 Album "+outside+"/ && rm junk.tmp")
+	reasons := map[string]model.DeleteReason{}
+	for _, op := range home.pendingOps(t) {
+		if op.Kind == model.LocalDelete {
+			reasons[op.Path] = op.Reason
+		}
+	}
+	for _, path := range []string{"/clip.mp4", "/Album/a.jpg", "/Album/b.jpg"} {
+		if reasons[path] != model.ReasonMovedOut {
+			t.Errorf("%s labelled %q", path, reasons[path])
+		}
+	}
+	if reasons["/junk.tmp"] != model.ReasonDeleted {
+		t.Errorf("rm labelled %q", reasons["/junk.tmp"])
 	}
 }

@@ -85,3 +85,100 @@ Decisions and conflicts that came up while building, in order.
 - **Known limits:**
   - A remote move that would make a local folder cycle is refused with a warning, not reverted (R16 row 9).
   - A file moved out of a folder deleted elsewhere follows the folder delete only if the delete reached this device first.
+
+## Paused on 2026-10-21
+
+The owner asked to stop the agents to save tokens. Their unfinished work is committed as WIP (untested, may not build) on:
+- `feat/08d-api-cli`: API server files, not yet the client or CLI.
+- `feat/09-panel`: `panel/layout` only.
+
+`main` holds steps 0–6 plus the API contract, and every check passes. Next up: step 7 (trash restore, purge and expiry, move-out detection, notifications), then step 8 (daemon) and the rest of 8 and 9 from those branches.
+
+## Refactor: receivers (owner request)
+
+The owner asked for one receiver style, preferably pointers. Every type now uses pointer receivers throughout, with three deliberate exceptions:
+- **`model.Stamp`:** an immutable value like `time.Time`. Its value-receiver `MarshalText` is what makes a Stamp encode as text inside struct fields, and methods like `String` and `After` are called on non-addressable values. `TestStampEncodesAsTextInsideValues` pins this.
+- **`config.Duration`:** the same reason, for TOML.
+- **`drivefake.fieldMask`:** a map type, which is already a reference, so `len` and `range` need the value.
+
+Constructors and interface assertions changed to match, e.g. `crypto.NewNameCipher` returns `*NameCipher`, and `&remote.Tree{...}`.
+
+## Step 7: trash, move-out, notifications
+
+- **Trash actions live in the workspace.** Restore, purge, empty and expiry are workspace methods, because they change tree, index and cache together. They take effect locally at once and reach Drive and the log through the outgoing queue, as the `restore` and `purge` op kinds.
+- **Purge logging (R26).** A purge `Get`s the trash item first. If it's already gone (another device expired it), nothing is logged, so two devices expiring the same item leave one `trash_purge` in history. A test checks this.
+- **Restore while the original is live (A7).** v1 refuses with `ErrRestoreWhileLive` instead of minting a new oid: the restored body's BodyID isn't known without a download. To do later.
+- **Move-out detection.** `trash.MoveOutDetector` keys reads by process (R18, through `procfilter.Proc`). A read-only open that the kernel serves from its page cache counts as a whole read. A real `mv` to another filesystem is labelled moved out for files and folders, while `rm` stays deleted.
+- **Notifications.** `Outgoing.OnMovedOut` fires once per trash entry after the commit, so a coalesced folder gives one notification. The daemon will route it to `notify`.
+- **Bug fixed.** Finalize used to set any clean object to Local, so moving a cloud-only file marked it as downloaded. Now only Dirty objects become Local.
+- **Not done yet.** Orphan GC (R15) on the daily expiry pass.
+
+## Step 8: api and daemon (in progress)
+
+- **API branch.** The stopped agent's server code was kept. The client, SSE consumer and round-trip tests were written to complete it.
+- **Sign-in before a vault exists.** The OAuth token can't be encrypted until a vault key exists, so between sign-in and create/join it lives only in daemon memory. Restarting in that window means signing in again.
+- **Clock persistence.** The HLC isn't persisted on every tick; that would write the index inside index transactions, which deadlocks on the single writer connection. On unlock it resumes from the newest stamp in the index: the latest own commit or pending op.
+- **Unlock checks (R23).** Unlock compares the Drive header with the local copy (vault ID and wrapped key). It refuses on a mismatch or a newer format, and offline it trusts the local copy.
+- **Lock order (R8).** Unmount, falling back to freeze plus lazy unmount when files are held open; then drain uploads (`lock_flush_timeout`), stop the workers, close storage, and destroy the keys last.
+- **Devices.** The device list comes from the log, plus this device. Spec §5 `devices/<id>.vdev` records aren't written yet; retire is a local mark only.
+- **Join mode.** Saved next to the cached header as `vault.header.mode`.
+- **End-to-end test.** `daemon` is tested with two real daemons and real FUSE mounts on one fake Drive: create, write through the mount, sync, lock (mount gone), wrong password refused, unlock, second device joins on demand and reads the file, and history names the first device.
+- **Binaries.** `vaultd` uses stdlib `flag` (two flags; cobra would be overkill) and logs JSON to `daemon.log`. Without Google credentials it still starts: sign-in then reports the problem (`UnavailableConnector`) instead of the daemon exiting.
+- **CLI.** `vault` (cobra) covers status, signin, create, join, unlock, lock, sync, verify, trash ls/restore/purge/empty, download, free and restore pause/resume. Download and free accept real mount paths. Without a terminal, passwords are read as one line from stdin so scripts can pipe them in.
+- **Instance directories.** These are chmod 0700 on start. A home made with plain `mkdir` (0775) was refused by the socket check (R21); the instance owns that directory, so it fixes the mode instead.
+- **Smoke test with real processes.** `tools/drivefake` plus two `vaultd --home` processes driven by the `vault` CLI: sign in, create, write via `~/Vault`, sync, lock (mount empty), unlock, `verify --deep`; B joins on demand, reads A's file and edits it; A sees B's edit.
+- **Install.** `make install` puts the binaries in `~/.local/bin` and the unit in `~/.config/systemd/user`.
+
+## Fix: stall on real Drive (owner report, 35,785 files not backing up)
+
+What the daemon log showed:
+- **Head-of-line block.** One file's resumable upload got HTTP 500 from Drive on every retry from 19:39 onward. Batches run one at a time, so that single file blocked all 35,785 queued changes for about 20 hours.
+- **Expired token after sleep.** Every changes poll got 401 from 13:14 the next day. Cause: `golang.org/x/oauth2` checks token expiry against Go's monotonic clock, which doesn't advance while the laptop is suspended. After a night asleep it kept sending an access token Google had expired hours earlier.
+
+Fixes:
+- **Token refresh.** `auth.WallClockSource` decides expiry by wall-clock time, and the Drive client forces a refresh on 401 (`drive.TokenRefresher`, passed through `PersistingSource`).
+- **Deferring failing ops.** Each op counts its failures in the batch. After 3 failed batch attempts, `deferFailingOps` takes it (and anything subsumed under it) out of the batch and reschedules it 15 minutes later. Its next batch starts a fresh upload session with new IDs, which is what Drive recommends when a session keeps returning 5xx. A test checks that a file the fake Drive always refuses leaves the other five uploaded.
+- **Open question.** Why Drive returned 500 for that upload session isn't proven; the token problem may be part of it. If it repeats, the log now says "deferring a change Drive keeps refusing" with the oid.
+
+## Fix: unlock failed with "parent ... file does not exist" (owner report)
+
+- **Cause.** Nautilus's Move to Trash on a folder renames it into `.Trash-<uid>/files/`. The workspace turned that rename into a delete of the folder object only, so its contents stayed live in the index under a deleted parent. The next unlock couldn't build the tree. The orphans' pending uploads also waited forever for a parent that would never reach Drive, which is part of the "not backed up" count. A move into any other local-only folder had the same bug.
+- **Fix.** Such renames now delete the whole subtree, children first (`deleteSubtree`), so the folder becomes one coalesced trash entry.
+- **Repair.** On open, `repairOrphans` moves live objects whose parent isn't live into a new top-level `Recovered <date>` folder, queued as create plus moves, so they become reachable and sync again. Nothing is deleted. The owner decides what to keep.
+
+## Fix: one 9 MB upload stuck on a dead session
+
+- **What the index showed:** 3,598 files synced, 40,471 dirty. The open batch was blocked on one 9 MB file, whose resumable session had answered HTTP 500 more than 230 times since the day before. Drive's documented advice for repeated 5xx on a session is to start a new one.
+- **Fix:** after 2 server errors (`isServerError`, via `drive.APIError.StatusCode`), the op drops its session and reserved ID and uploads through a fresh session. A test uses the fake Drive with a session that always fails.
+- **Unlock speed:** crash recovery at unlock now writes to the index only when a Dirty file's recorded size is wrong or its op is missing. Before, it did one FULL-sync write per Dirty file: about 3 minutes for 40k files.
+
+## Fix: sync hung with no errors logged
+
+- **Goroutine dump (SIGQUIT).** Every uploader was parked in `http2ClientConn.roundTrip` on a connection that had died silently, likely across sleep or a network change. The HTTP client had no timeout and no health check, so the batch never finished. The incoming poller then waited forever on `Outgoing.Exclusive`.
+- **Per-attempt deadline.** `drive.RetryConfig.AttemptTimeout` (default 10 min, enough for a 16 MiB chunk on a slow link) gives every attempt a deadline, so a hung request fails and is retried. A test uses a transport that hangs the first request.
+- **HTTP/2 health pings.** The daemon's transport pings idle connections (`HTTP2Config.SendPingTimeout` 30 s, `PingTimeout` 15 s), so dead links are dropped long before the deadline.
+- **Diagnosis note.** `PR_SET_DUMPABLE=0` makes `/proc/<pid>` unreadable, even to the owner, so `ss -p`, fd listings and `/proc/<pid>/io` show nothing. A SIGQUIT goroutine dump via `journalctl --user -u vaultd` is the way in. It costs a restart, which the crash-safe design tolerates.
+
+## Device records (spec §5)
+
+- **Package.** `internal/devices` owns `devices/<id>.vdev`. A record holds name, first seen, retired and updated time, sealed with the log subkey and `DeviceAD(id)`, so a record renamed to another device's file name fails to open.
+- **Replacing a record.** Upload the new copy, then delete the old ones, so the Drive client needs no content-update call. A crash in between leaves two copies, and readers take the newest `updated`.
+- **When records are written.** Each device publishes its own at unlock (in the background, so offline unlock isn't held up), keeping first seen and retired from the existing record. Retire writes the target device's record. This replaces the local-only `devices/retired` KV mark; the live index had none.
+- **Device list.** It merges the log with the records, and the record's name and first-seen win. Records are read at unlock and on every publish, then served from memory, so the history view never waits on Drive. A device that joins after this one unlocked shows its log name until the next unlock.
+- **Known race.** A device publishing its own record at the same moment another device retires it can drop the retire. Retiring again fixes it.
+
+## Backup alert (spec §12)
+
+- **Online.** `drive.Client.LastContact` records any answer from Drive, including error answers. The daemon counts as online while Drive answered within two idle poll intervals plus a minute (2 min by default). `status.Online` uses the same check instead of a hard-coded true.
+- **Rule.** One notification per stretch in which the backlog stays non-empty for 10 minutes online. Time offline restarts the count, and the stretch ends only when the backlog reaches zero. This is per stretch, not per file: per-file ages would mean decoding every pending op each minute. With a long first import it fires once, as a heads-up.
+- **Byte formatting.** Moved from the CLI to `api.FormatBytes`, so the daemon's notification and the CLI print sizes the same way.
+
+## Orphan GC (R15)
+
+- **What counts.** A Drive file under `tree/` or the top level of `trash/` that carries our `vid` and whose ID is in no object row, trash row or open batch (new, current or result Drive ID). Trash item names (`t-…`) aren't Drive IDs and are left out.
+- **Walk.** It descends only into referenced folders. An orphan folder is deleted whole, and trashed folders aren't entered, since their subtree belongs to the trash item.
+- **Races.** References are read before the walk (to choose which folders to descend into) and again after it. A file is deleted only if it's unreferenced in the second read and older than 30 days by Drive's `createdTime`. So a commit applied mid-walk, or another device's fresh upload that hasn't been applied here yet, is never touched. 404 on delete counts as success (client behaviour).
+- **Schedule.** Runs in the daily expiry loop, at most once per 24 h across restarts (`orphans/last_collected` in kv), and only while online. It lists every folder (up to 4 in parallel), so it isn't rerun at every unlock.
+- **Live-index check before shipping.** Every trash row has a Drive ID. The only synced objects without one are local-only desktop-trash entries and the root folder, so nothing live would be taken for an orphan.
+- **Test.** Unit test of the rules, plus the daemon end-to-end test running GC with no age limit on a freshly synced vault, which finds nothing.
+- **Device records.** Also refreshed on the daily pass, so a device that joined later gets its name without waiting for an unlock.

@@ -314,7 +314,7 @@ func TestSealedColumnsHoldNoPlaintext(t *testing.T) {
 // A killed process must not lose committed rows; the child exits without closing the store.
 func TestCommittedRowsSurviveAbruptExit(t *testing.T) {
 	if path := os.Getenv("VAULT_INDEX_CRASH_PATH"); path != "" {
-		store, err := Open(context.Background(), path, plainSealer{})
+		store, err := Open(context.Background(), path, &plainSealer{})
 		if err != nil {
 			os.Exit(2)
 		}
@@ -330,7 +330,7 @@ func TestCommittedRowsSurviveAbruptExit(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("child: %v\n%s", err, output)
 	}
-	store := openTestStore(t, path, plainSealer{})
+	store := openTestStore(t, path, &plainSealer{})
 	view(t, store, func(tx *Tx) error {
 		value, ok, err := tx.KV("survives")
 		if !ok || string(value) != "yes" {
@@ -342,5 +342,5 @@ func TestCommittedRowsSurviveAbruptExit(t *testing.T) {
 
 type plainSealer struct{}
 
-func (plainSealer) Seal(_, plaintext []byte) ([]byte, error) { return plaintext, nil }
-func (plainSealer) Open(_, sealed []byte) ([]byte, error)    { return sealed, nil }
+func (*plainSealer) Seal(_, plaintext []byte) ([]byte, error) { return plaintext, nil }
+func (*plainSealer) Open(_, sealed []byte) ([]byte, error)    { return sealed, nil }

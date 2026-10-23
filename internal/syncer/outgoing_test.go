@@ -254,3 +254,26 @@ func TestDuplicateContentIsCopiedServerSide(t *testing.T) {
 		t.Fatal("copied file content differs")
 	}
 }
+
+func TestFileDriveKeepsRefusingDoesNotBlockOthers(t *testing.T) {
+	n := devicetest.NewNetwork(t)
+	a := n.NewDevice(t, "a")
+	a.WriteFile("/stuck.bin", bytes.Repeat([]byte("s"), 6<<20))
+	for i := 0; i < 5; i++ {
+		a.WriteFile("/ok-"+string(rune('a'+i))+".txt", []byte("fine"))
+	}
+	isChunk := func(r *http.Request) bool {
+		return r.Method == http.MethodPut && drivefake.KindOf(r) == drivefake.KindUpload
+	}
+	n.Drive.InjectFault(drivefake.Fault{Match: isChunk, Status: 500, Reason: "internalError", Times: 1000000})
+	for attempt := 0; attempt < 4; attempt++ {
+		a.Outgoing.FlushNow(context.Background())
+	}
+	tree := driveFilesUnder(t, n, n.Folders.Tree)
+	if len(tree) != 5 {
+		t.Fatalf("Drive holds %d files, want the 5 that Drive accepts", len(tree))
+	}
+	if files, _, _ := a.Outgoing.Backlog(context.Background()); files != 1 {
+		t.Fatalf("backlog = %d, want only the refused file", files)
+	}
+}

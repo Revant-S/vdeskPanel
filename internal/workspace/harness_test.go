@@ -31,7 +31,7 @@ var testKeyring = sync.OnceValue(func() *crypto.Keyring {
 
 type offlineFetcher struct{}
 
-func (offlineFetcher) FetchRange(context.Context, model.ObjectID, int64, int64, io.WriterAt) error {
+func (*offlineFetcher) FetchRange(context.Context, model.ObjectID, int64, int64, io.WriterAt) error {
 	return errors.New("offline")
 }
 
@@ -62,7 +62,7 @@ func (h *testHome) open(t *testing.T) {
 	content := func(use func(cipher.AEAD) error) error {
 		return keyring.Use(func(k *crypto.Keys) error { return use(k.Content) })
 	}
-	bodies, err := cache.New(filepath.Join(h.dir, "cache"), cache.Deps{Fetcher: offlineFetcher{}, Bitmaps: store, Content: content, Random: rand.Reader, Logger: logger}, cache.Config{})
+	bodies, err := cache.New(filepath.Join(h.dir, "cache"), cache.Deps{Fetcher: &offlineFetcher{}, Bitmaps: store, Content: content, Random: rand.Reader, Logger: logger}, cache.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

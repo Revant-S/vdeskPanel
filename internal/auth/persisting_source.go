@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -40,6 +41,19 @@ func (p *persistingSource) Token() (*oauth2.Token, error) {
 	}
 	p.saved = toSave
 	return token, nil
+}
+
+// RefreshToken passes a forced refresh through to the wrapped source, if it supports one.
+func (p *persistingSource) RefreshToken(ctx context.Context) error {
+	refresher, ok := p.base.(interface{ RefreshToken(context.Context) error })
+	if !ok {
+		return nil
+	}
+	if err := refresher.RefreshToken(ctx); err != nil {
+		return err
+	}
+	_, err := p.Token()
+	return err
 }
 
 func hasRotated(saved, current *oauth2.Token) bool {

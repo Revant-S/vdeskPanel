@@ -34,6 +34,8 @@ type OutgoingDeps struct {
 	Random    io.Reader
 	Now       func() time.Time
 	Logger    *slog.Logger
+	// OnMovedOut is told once per item that left the vault, after it is safe in the trash.
+	OnMovedOut func(path string, folder bool, files int)
 }
 
 type OutgoingConfig struct {
@@ -156,6 +158,9 @@ func (o *Outgoing) Backlog(ctx context.Context) (files int, bytes int64, err err
 
 func (o *Outgoing) runBatch(ctx context.Context, plan *BatchPlan) error {
 	if !plan.Committed {
+		if err := o.deferFailingOps(ctx, plan); err != nil {
+			return err
+		}
 		if err := o.executeBatch(ctx, plan); err != nil {
 			return err
 		}

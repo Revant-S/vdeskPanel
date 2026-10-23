@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	drive "google.golang.org/api/drive/v3"
@@ -64,6 +65,8 @@ type Client struct {
 	budget         *Budget
 	refresher      TokenRefresher
 	logger         *slog.Logger
+	now            func() time.Time
+	lastContact    atomic.Int64
 }
 
 func NewClient(ctx context.Context, cfg Config, deps Deps) (*Client, error) {
@@ -101,7 +104,21 @@ func NewClient(ctx context.Context, cfg Config, deps Deps) (*Client, error) {
 		budget:         newBudget(cfg.Budget, now),
 		refresher:      deps.TokenRefresher,
 		logger:         logger,
+		now:            now,
 	}, nil
+}
+
+// LastContact is when Drive last answered any request, successfully or not. The zero time
+// means never.
+func (c *Client) LastContact() time.Time {
+	if nanos := c.lastContact.Load(); nanos != 0 {
+		return time.Unix(0, nanos)
+	}
+	return time.Time{}
+}
+
+func (c *Client) noteContact() {
+	c.lastContact.Store(c.now().UnixNano())
 }
 
 func (c *Client) Budget() *Budget { return c.budget }
@@ -116,7 +133,7 @@ type NewFile struct {
 	Properties   map[string]string
 }
 
-func (f NewFile) toDrive(mimeType string) *drive.File {
+func (f *NewFile) toDrive(mimeType string) *drive.File {
 	file := &drive.File{
 		Id:            f.ID,
 		Name:          f.Name,

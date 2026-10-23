@@ -1,0 +1,17 @@
+[Unit]
+Description=Vault - encrypted Drive-backed storage
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/vaultd
+Restart=on-failure
+RestartSec=3
+# Locking flushes pending uploads and unmounts before the keys are wiped.
+KillSignal=SIGTERM
+TimeoutStopSec=60
+LimitCORE=0
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=default.target
