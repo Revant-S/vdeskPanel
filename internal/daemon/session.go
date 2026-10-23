@@ -12,6 +12,7 @@ import (
 
 	"github.com/cosmoboy/vault/internal/cache"
 	"github.com/cosmoboy/vault/internal/crypto"
+	"github.com/cosmoboy/vault/internal/devices"
 	"github.com/cosmoboy/vault/internal/drive"
 	"github.com/cosmoboy/vault/internal/fusefs"
 	"github.com/cosmoboy/vault/internal/index"
@@ -36,6 +37,7 @@ type session struct {
 	index     *index.Store
 	cache     *cache.Cache
 	codec     *journal.Codec
+	devices   *devices.Registry
 	workspace *workspace.Workspace
 	journal   *journal.Journal
 	outgoing  *syncer.Outgoing
@@ -129,6 +131,16 @@ func (s *session) start() {
 	group.Go(func() error { return s.restorer.Run(ctx) })
 	group.Go(func() error { return s.workspace.RunInvalidations(ctx) })
 	group.Go(func() error { return s.expireTrashDaily(ctx) })
+	group.Go(func() error { s.publishDevice(ctx); return nil })
+}
+
+// publishDevice writes this device's record. Offline it is retried at the next unlock; the
+// device list falls back to the log meanwhile.
+func (s *session) publishDevice(ctx context.Context) {
+	name := s.daemon.config.DeviceName
+	if err := s.devices.Publish(ctx, s.daemon.device, func(r *devices.Record) { r.Name = name }); err != nil {
+		s.daemon.Logger.Warn("publish device record", "err", err)
+	}
 }
 
 func (s *session) expireTrashDaily(ctx context.Context) error {

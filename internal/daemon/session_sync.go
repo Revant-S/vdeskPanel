@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cosmoboy/vault/internal/crypto"
+	"github.com/cosmoboy/vault/internal/devices"
 	"github.com/cosmoboy/vault/internal/journal"
 	"github.com/cosmoboy/vault/internal/model"
 	"github.com/cosmoboy/vault/internal/notify"
@@ -54,6 +55,8 @@ func (s *session) openSync(ctx context.Context, restoreMode restore.Mode) error 
 		Applier: s.workspace, Exclusive: s.outgoing.Exclusive, NotFound: remote.IsNotFound, Now: d.Now, Logger: logger},
 		syncer.IncomingConfig{Device: d.device, LogFolderID: s.folders.Log, OwnLogFolderID: logFolder,
 			ActiveInterval: cfg.Polling.Active.Duration, IdleInterval: cfg.Polling.Idle.Duration, ActivityWindow: cfg.Polling.ActivityWindow.Duration})
+	s.devices = devices.New(devices.Deps{Remote: &remote.Devices{Log: remote.Log{Client: s.client}}, Keyring: s.keyring,
+		Random: rand.Reader, Now: d.Now, Logger: logger}, devices.Config{VaultID: s.vaultID, FolderID: s.folders.Devices})
 	s.restorer, err = restore.New(ctx, restore.Deps{Index: s.index, Cache: s.cache, UploadsPending: s.uploadsPending, Logger: logger},
 		restore.Config{Mode: restoreMode, Files: cfg.Workers.Downloads})
 	if err != nil {
