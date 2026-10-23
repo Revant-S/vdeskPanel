@@ -152,6 +152,10 @@ func (s *session) expireTrashDaily(ctx context.Context) error {
 		} else if expired > 0 {
 			s.daemon.Logger.Info("expired trash items", "count", expired)
 		}
+		s.collectOrphansIfDue(ctx)
+		if _, err := s.devices.Refresh(ctx); err != nil {
+			s.daemon.Logger.Debug("refresh device records", "err", err)
+		}
 		select {
 		case <-ctx.Done():
 			return nil

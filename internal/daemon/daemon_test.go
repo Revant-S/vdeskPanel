@@ -14,6 +14,7 @@ import (
 	"github.com/cosmoboy/vault/internal/config"
 	"github.com/cosmoboy/vault/internal/devicetest"
 	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"github.com/cosmoboy/vault/internal/orphans"
 )
 
 func newTestDaemon(t *testing.T, fake *drivefake.Server, name string) *Daemon {
@@ -74,6 +75,12 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if status, _ := a.Status(ctx); status.NotBackedUpFiles != 0 || status.LastBackedUp.IsZero() {
 		t.Fatalf("status after sync = %+v", status)
 	}
+	session, _ := a.currentSession()
+	collector := orphans.New(orphans.Deps{Remote: session.client, References: session.referencedDriveIDs, Now: time.Now},
+		orphans.Config{VaultID: session.vaultID, TreeFolderID: session.folders.Tree, TrashFolderID: session.folders.Trash})
+	if result, err := collector.Collect(ctx); err != nil || result.Found != 0 {
+		t.Fatalf("orphans in a synced vault: %+v, %v", result, err)
+	}
 	if err := a.Lock(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +113,7 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if err := b.RetireDevice(ctx, string(a.device)); err != nil {
 		t.Fatal(err)
 	}
-	session, _ := a.currentSession()
+	session, _ = a.currentSession()
 	if _, err := session.devices.Refresh(ctx); err != nil {
 		t.Fatal(err)
 	}
