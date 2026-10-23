@@ -128,3 +128,14 @@ Constructors and interface assertions changed to match, e.g. `crypto.NewNameCiph
 - **Instance directories.** These are chmod 0700 on start. A home made with plain `mkdir` (0775) was refused by the socket check (R21); the instance owns that directory, so it fixes the mode instead.
 - **Smoke test with real processes.** `tools/drivefake` plus two `vaultd --home` processes driven by the `vault` CLI: sign in, create, write via `~/Vault`, sync, lock (mount empty), unlock, `verify --deep`; B joins on demand, reads A's file and edits it; A sees B's edit.
 - **Install.** `make install` puts the binaries in `~/.local/bin` and the unit in `~/.config/systemd/user`.
+
+## Fix: stall on real Drive (owner report, 35,785 files not backing up)
+
+What the daemon log showed:
+- **Head-of-line block.** One file's resumable upload got HTTP 500 from Drive on every retry from 19:39 onward. Batches run one at a time, so that single file blocked all 35,785 queued changes for about 20 hours.
+- **Expired token after sleep.** Every changes poll got 401 from 13:14 the next day. Cause: `golang.org/x/oauth2` checks token expiry against Go's monotonic clock, which doesn't advance while the laptop is suspended. After a night asleep it kept sending an access token Google had expired hours earlier.
+
+Fixes:
+- **Token refresh.** `auth.WallClockSource` decides expiry by wall-clock time, and the Drive client forces a refresh on 401 (`drive.TokenRefresher`, passed through `PersistingSource`).
+- **Deferring failing ops.** Each op counts its failures in the batch. After 3 failed batch attempts, `deferFailingOps` takes it (and anything subsumed under it) out of the batch and reschedules it 15 minutes later. Its next batch starts a fresh upload session with new IDs, which is what Drive recommends when a session keeps returning 5xx. A test checks that a file the fake Drive always refuses leaves the other five uploaded.
+- **Open question.** Why Drive returned 500 for that upload session isn't proven; the token problem may be part of it. If it repeats, the log now says "deferring a change Drive keeps refusing" with the oid.
