@@ -31,6 +31,7 @@ func TestWallClockSourceRefreshesExpiredAndForcedTokens(t *testing.T) {
 	if err != nil || token.AccessToken != "access-1" || token.RefreshToken != "refresh" {
 		t.Fatalf("after expiry by wall clock: %+v, %v", token, err)
 	}
+	source.now = time.Now
 	if err := source.RefreshToken(context.Background()); err != nil {
 		t.Fatal(err)
 	}
