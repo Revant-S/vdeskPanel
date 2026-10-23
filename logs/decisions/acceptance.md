@@ -23,3 +23,9 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 |---|---|
 | Edit on one device visible on the other within 30 s | **Pass.** A→B 23 s, B→A 21 s. |
 | Stuck "1 file not backed up" and restore on A | **Bug found and fixed** (build-log, "Fix: a trashed file stayed not backed up"). After installing the fix, A is `All backed up` and downloaded B's test files. |
+
+## 2026-10-23, both daemons on the build with the delete-path fixes
+
+| Check | Result |
+|---|---|
+| Free up space returns the disk space and files stay browsable | **Pass** (after two fixes, see build-log). On B: a 188 MB file downloaded, then freed; cache 196 MB → 16 MB, no regrowth after 15 s, file still listed and readable on demand. The spec's 10 GB folder is a scaled-up version of the same path. |
