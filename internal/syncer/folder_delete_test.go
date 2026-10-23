@@ -90,6 +90,52 @@ func TestFileEditedThenDeletedBeforeSyncRestoresElsewhere(t *testing.T) {
 	expectTree(t, assertConverged(t, n, a, b), map[string]string{"/doc.txt": "edited just before the delete"})
 }
 
+func TestMoveOutOfFolderDeletedElsewhere(t *testing.T) {
+	for _, first := range []string{"a", "b"} {
+		t.Run(first+" syncs first", func(t *testing.T) {
+			n, a, b := twoDevicesWith(t, deepFolder)
+			b.Rename("/P/Q/deep.txt", "/deep.txt")
+			b.Rename("/P/Q", "/Q")
+			b.WriteFile("/Q/new.txt", []byte("new on b"))
+			removeDeepFolder(a)
+			if first == "a" {
+				a.Sync()
+			}
+			b.Sync()
+			a.Sync()
+			if tree := assertConverged(t, n, a, b); len(tree) != 0 {
+				t.Fatalf("tree = %s, want the folder delete to win", describeTree(tree))
+			}
+			restoreAll(t, a)
+			b.Restart()
+			a.Restart()
+			expectTree(t, assertConverged(t, n, a, b), map[string]string{"/P": "/", "/P/Q": "/", "/P/Q/deep.txt": "deep",
+				"/P/Q/new.txt": "new on b"})
+		})
+	}
+}
+
+func TestThreeDevicesMoveEditAndFolderDelete(t *testing.T) {
+	n := devicetest.NewNetwork(t)
+	a, b, c := n.NewDevice(t, "a"), n.NewDevice(t, "b"), n.NewDevice(t, "c")
+	a.Mkdir("/F")
+	a.WriteFile("/F/doc.txt", []byte("base"))
+	a.Sync()
+	b.Poll()
+	c.Poll()
+	a.Rename("/F/doc.txt", "/doc.txt")
+	b.WriteFile("/F/doc.txt", []byte("edited on b"))
+	c.Remove("/F/doc.txt")
+	c.Remove("/F")
+	b.Sync()
+	c.Sync()
+	a.Sync()
+	if tree := assertConverged(t, n, a, b, c); len(tree) != 0 {
+		t.Fatalf("tree = %s, want the folder delete to win", describeTree(tree))
+	}
+	assertTrashHolds(t, n, "edited on b")
+}
+
 func TestEditInsideFolderDeletedHereButNotYetSynced(t *testing.T) {
 	n, a, b := twoDevicesWith(t, deepFolder)
 	removeDeepFolder(a)

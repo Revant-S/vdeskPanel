@@ -42,7 +42,7 @@ func journalOps(plan *BatchPlan) []journal.Op {
 			out = append(out, attrOp(op))
 		case NetDelete:
 			if op.SubsumedBy == "" {
-				out = append(out, deleteOp(op))
+				out = append(out, deleteOp(op, subsumedBy(plan, op.ObjectID)))
 			}
 		case NetRestore:
 			out = append(out, journal.Op{Kind: journal.OpTrashRestore, ObjectID: op.ObjectID, ParentID: op.Object.ParentID,
@@ -82,7 +82,17 @@ func attrOp(op BatchOp) journal.Op {
 		ContentMAC: facts.ContentMAC, BodyID: facts.BodyID, BodyMD5: facts.BodyMD5, DriveID: facts.DriveID, Version: op.Version}
 }
 
-func deleteOp(op BatchOp) journal.Op {
+func subsumedBy(plan *BatchPlan, folder model.ObjectID) []journal.Placement {
+	var contents []journal.Placement
+	for _, op := range plan.Ops {
+		if op.SubsumedBy == folder {
+			contents = append(contents, journal.Placement{ObjectID: op.ObjectID, ParentID: op.Object.ParentID, EncName: op.Object.EncName})
+		}
+	}
+	return contents
+}
+
+func deleteOp(op BatchOp, contents []journal.Placement) journal.Op {
 	kind := journal.OpDelete
 	switch {
 	case op.Superseded:
@@ -97,7 +107,7 @@ func deleteOp(op BatchOp) journal.Op {
 		trash.BodyID, trash.BodyMD5, trash.Size = op.Result.BodyID, op.Result.BodyMD5, op.Result.Size
 	}
 	return journal.Op{Kind: kind, ObjectID: op.ObjectID, Path: op.Path, Folder: op.Folder, Reason: string(op.Reason),
-		Trash: trash, FileCount: op.FileCount, Version: op.Version}
+		Trash: trash, FileCount: op.FileCount, Contents: contents, Version: op.Version}
 }
 
 func trashDriveID(op BatchOp) string {

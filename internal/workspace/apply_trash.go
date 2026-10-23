@@ -17,9 +17,9 @@ func (a *remoteApply) trashRestore(op journal.Op) error {
 		return err
 	}
 	for _, row := range rows {
-		row.TrashID, row.DeleteVer = "", model.Stamp{}
+		row.TrashID, row.DeleteVer, row.PlacementVer = "", model.Stamp{}, op.Version
 		if row.ID == op.ObjectID {
-			row.ParentID, row.EncName, row.PlacementVer = op.ParentID, op.EncName, op.Version
+			row.ParentID, row.EncName = op.ParentID, op.EncName
 		}
 		if row.Kind == model.KindFile {
 			row.State = model.CloudOnly
