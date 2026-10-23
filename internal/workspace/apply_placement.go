@@ -26,6 +26,11 @@ func (a *remoteApply) placement(op journal.Op) error {
 	if !parentLive {
 		return a.hideUnder(object, parent, entry, inTree)
 	}
+	if inTree && entry.IsFolder() {
+		if applies, err := a.breakMoveCycle(object.ID, op.ParentID, op.Version); err != nil || !applies {
+			return err
+		}
+	}
 	name, err := a.ws.Names.DecryptName(object.ID, op.EncName)
 	if err != nil {
 		return err

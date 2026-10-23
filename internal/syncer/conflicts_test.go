@@ -105,6 +105,31 @@ func TestMoveIntoFolderDeletedElsewhere(t *testing.T) {
 	}
 }
 
+func TestMoveCycleNewerMoveWins(t *testing.T) {
+	for _, first := range []string{"a", "b"} {
+		t.Run(first+" syncs first", func(t *testing.T) {
+			n, a, b := twoDevicesWith(t, func(a *devicetest.Device) {
+				a.Mkdir("/X")
+				a.Mkdir("/Y")
+				a.WriteFile("/X/x.txt", []byte("x"))
+				a.WriteFile("/Y/y.txt", []byte("y"))
+			})
+			a.Rename("/X", "/Y/X")
+			b.Rename("/Y", "/X/Y")
+			if first == "a" {
+				a.Sync()
+				b.Sync()
+			} else {
+				b.Sync()
+				a.Sync()
+			}
+			a.Restart()
+			b.Restart()
+			expectTree(t, assertConverged(t, n, a, b), map[string]string{"/X": "/", "/X/x.txt": "x", "/X/Y": "/", "/X/Y/y.txt": "y"})
+		})
+	}
+}
+
 func TestFolderRenameWhileOtherDeviceAddsInside(t *testing.T) {
 	n, a, b := twoDevicesWith(t, func(a *devicetest.Device) {
 		a.Mkdir("/Draft")

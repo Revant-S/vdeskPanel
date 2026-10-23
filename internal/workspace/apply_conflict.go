@@ -52,7 +52,16 @@ func (a *remoteApply) renameForConflict(existing model.Entry, object index.Objec
 }
 
 func (a *remoteApply) logConflictRename(id, parentID model.ObjectID, from, to string, folder bool) error {
+	return a.logMove(id, parentID, from, parentID, to, folder)
+}
+
+// logMove records a move this device made to settle a conflict, stamped now so it wins.
+func (a *remoteApply) logMove(id, fromParentID model.ObjectID, from string, parentID model.ObjectID, to string, folder bool) error {
 	parentPath, err := a.ws.tree.PathOf(parentID)
+	if err != nil {
+		return err
+	}
+	fromParentPath, err := a.ws.tree.PathOf(fromParentID)
 	if err != nil {
 		return err
 	}
@@ -68,7 +77,7 @@ func (a *remoteApply) logConflictRename(id, parentID model.ObjectID, from, to st
 		}
 	}
 	op := model.LocalOp{Kind: model.LocalMove, ObjectID: id, Folder: folder, ParentID: parentID, Name: to,
-		Path: path.Join(parentPath, to), FromParentID: parentID, FromName: from, FromPath: path.Join(parentPath, from)}
+		Path: path.Join(parentPath, to), FromParentID: fromParentID, FromName: from, FromPath: path.Join(fromParentPath, from)}
 	return appendOp(a.tx, op, stamp, a.ws.Now())
 }
 
@@ -200,4 +209,50 @@ func (w *Workspace) finishBodyMoves(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// breakMoveCycle settles two concurrent moves that would put a folder inside itself (row 9).
+// If the incoming move is older it loses and is skipped; its author moves back when it sees
+// the newer one. If it is newer, the folder the older move put inside the moving object goes
+// back to the root, and that move back is logged for everyone.
+func (a *remoteApply) breakMoveCycle(id, newParentID model.ObjectID, version model.Stamp) (bool, error) {
+	var inside model.ObjectID
+	for current := newParentID; current != id; {
+		if current == model.RootID {
+			return true, nil
+		}
+		entry, ok := a.ws.tree.Get(current)
+		if !ok {
+			return true, nil
+		}
+		inside, current = current, entry.ParentID
+	}
+	if inside == "" {
+		return false, nil
+	}
+	entry, _ := a.ws.tree.Get(inside)
+	object, found, err := a.load(inside)
+	if err != nil || !found {
+		return false, err
+	}
+	if !version.After(object.PlacementVer) {
+		return false, nil
+	}
+	name := entry.Name
+	if _, taken := a.ws.tree.Lookup(model.RootID, name); taken {
+		name = a.conflictName(model.RootID, name, a.ws.config.DeviceName)
+	}
+	if object.EncName, err = a.ws.Names.EncryptName(inside, name); err != nil {
+		return false, err
+	}
+	if err := a.ws.tree.Move(inside, model.RootID, name); err != nil {
+		return false, err
+	}
+	object.ParentID = model.RootID
+	if err := a.tx.PutObject(object); err != nil {
+		return false, err
+	}
+	a.invalidateEntry(entry.ParentID, entry.Name)
+	a.invalidateEntry(model.RootID, name)
+	return true, a.logMove(inside, entry.ParentID, entry.Name, model.RootID, name, entry.IsFolder())
 }

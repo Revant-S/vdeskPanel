@@ -362,3 +362,10 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Fix.** Row 7 says the folder delete wins over ops on descendants. The folder delete op now lists what it folded in, with where each one was (`Contents`, a new optional field). A receiver also deletes those it has moved out, and puts them back where the deleter had them. A remote move no longer changes a deleted row (rows 6 and 7: the delete wins), so a restore brings the item back as it was deleted, and every restored row takes the restore's placement stamp so later moves resolve the same way everywhere.
 - **Known limit.** On Drive, the moved-out files stay where the mover put them (under `tree/`, outside the trashed folder). The index is authoritative, so reads, restores and orphan GC go by Drive ID and are unaffected; a purge leaves those Drive files to orphan GC after 30 days.
 - **Tests.** `TestMoveOutOfFolderDeletedElsewhere` (both sync orders, then restore and restart) and `TestThreeDevicesMoveEditAndFolderDelete`. Both fail without the fix.
+
+### Fix: two moves forming a cycle left the devices diverged for good
+
+- **Symptom.** A moves `/X` into `/Y` while B moves `/Y` into `/X`. A kept `/Y/X`, B kept `/X/Y`, and nothing ever reconciled them.
+- **Cause.** Row 9 wasn't implemented. On A the tree refused B's newer move ("remote move refused locally") and dropped it; on B, A's move was newer than X's placement (B had moved Y, not X), so B applied it, and in other orders the moves simply crossed.
+- **Fix.** `breakMoveCycle`: before a remote folder move, if its target lies inside the moving folder, compare the incoming stamp with the placement of the folder inside the chain. If the incoming move is older it is skipped. If it is newer, that folder goes back to the root (renamed `(conflict <device>)` if the name is taken) and the move back is logged, as row 9 asks of the older move's author.
+- **Test.** `TestMoveCycleNewerMoveWins`, both sync orders, with restarts: both devices and a fresh one end with `/X/Y`. It fails without the fix with the two devices diverged.
