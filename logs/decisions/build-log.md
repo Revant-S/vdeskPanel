@@ -275,3 +275,9 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Cause.** The reducer treated an object as a restore only when its last op was the restore. Otherwise it reduced all ops together and the restore op vanished: the move or modify ran on a file still under `trash/`, and the commit carried no `trash_restore`.
 - **Fix.** `lastTrashOp`: a batch takes an object's ops up to its last restore or purge. The ops after it stay queued for the next batch, which runs once the object is live on Drive and in the log.
 - **Tests.** `TestRestoreThen{Rename,DeleteAgain,Edit}BeforeSync…`: B and a fresh device see the renamed or edited file, and a delete again leaves one trash item on each device. All three fail without the fix.
+
+### Fix: a stale purge deleted the same file trashed again
+
+- **Race.** A deletes a file (trash item X), restores it and deletes it again (trash item Y, same Drive file, now named Y in `trash/`). B, which hasn't applied the restore yet, purges X. `purgeRemote` only checked that the file was still under `trash/`, so it deleted Y's body: A's trash still listed Y, but it could no longer be restored.
+- **Fix.** A purge also requires the Drive file to still carry the trash item's own name, which every trash upload and move sets. Otherwise it is skipped like a purge that lost to a restore, so the rows stay and the restore and the new delete apply on top of them.
+- **Test.** `TestStalePurgeSparesTheSameFileTrashedAgain`: after B's stale purge, Y is still on Drive and on both devices, and B can restore it. It fails without the fix with nothing left in Drive's trash.

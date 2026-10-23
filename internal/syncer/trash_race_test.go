@@ -91,3 +91,33 @@ func TestRestoreThenEditBeforeSyncReachesOtherDevices(t *testing.T) {
 		t.Fatalf("B trash = %v", trashIDs(t, b))
 	}
 }
+
+func TestStalePurgeSparesTheSameFileTrashedAgain(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.WriteFile("/notes.txt", []byte("deleted twice"))
+	a.Sync()
+	a.Remove("/notes.txt")
+	a.Sync()
+	b.Poll()
+	staleID := trashIDs(t, b)["/notes.txt"]
+	restoreOrFail(t, a, "/notes.txt")
+	a.Sync()
+	a.Remove("/notes.txt")
+	a.Sync()
+	if _, err := b.Workspace.PurgeTrash(ctx, staleID); err != nil {
+		t.Fatal(err)
+	}
+	b.SyncAndPoll()
+	a.Poll()
+	if len(driveFilesUnder(t, n, n.Folders.Trash)) != 1 || trashCount(t, a) != 1 || trashCount(t, b) != 1 {
+		t.Fatalf("Drive trash = %d, A trash = %d, B trash = %d, want the second trash item kept",
+			len(driveFilesUnder(t, n, n.Folders.Trash)), trashCount(t, a), trashCount(t, b))
+	}
+	restoreOrFail(t, b, "/notes.txt")
+	b.Sync()
+	a.Poll()
+	expectContent(t, a, "/notes.txt", "deleted twice")
+	expectContent(t, b, "/notes.txt", "deleted twice")
+}
