@@ -12,10 +12,10 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/cache"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 // BodyCache opens cached bodies; a CloudOnly or Partial entry fetches what it is missing.

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/fusefs/fusetest"
-	"github.com/cosmoboy/vault/internal/model"
 	"golang.org/x/sys/unix"
+	"vault/internal/fusefs"
+	"vault/internal/fusefs/fusetest"
+	"vault/internal/model"
 )
 
 func mountMemory(t *testing.T) (string, *fusefs.MemoryStore, *fusefs.Mount) {

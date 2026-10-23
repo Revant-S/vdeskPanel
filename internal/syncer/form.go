@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 // formBatch selects ready ops, reduces them and persists the batch with every Drive ID it

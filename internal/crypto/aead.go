@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/crypto/chacha20poly1305"
+	"vault/internal/secret"
 )
 
 const (

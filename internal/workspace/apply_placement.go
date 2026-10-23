@@ -1,9 +1,9 @@
 package workspace
 
 import (
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 // placement applies a remote rename or move when it is newer than this device's placement.

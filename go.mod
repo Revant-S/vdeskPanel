@@ -1,4 +1,4 @@
-module github.com/cosmoboy/vault
+module vault
 
 go 1.26.0
 

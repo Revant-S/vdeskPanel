@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/crypto"
+	"vault/internal/vaultfile"
 )
 
 func (v *Verifier) checkBodies(ctx context.Context, checks []*bodyCheck, report *Report) error {

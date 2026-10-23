@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/daemon"
-	"github.com/cosmoboy/vault/internal/notify"
-	"github.com/cosmoboy/vault/internal/secret"
+	"vault/internal/api"
+	"vault/internal/config"
+	"vault/internal/daemon"
+	"vault/internal/notify"
+	"vault/internal/secret"
 )
 
 const stopTimeout = 50 * time.Second

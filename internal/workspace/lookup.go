@@ -6,10 +6,10 @@ import (
 	"io/fs"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/model"
 	"golang.org/x/sys/unix"
+	"vault/internal/crypto"
+	"vault/internal/fusefs"
+	"vault/internal/model"
 )
 
 var _ fusefs.Store = (*Workspace)(nil)

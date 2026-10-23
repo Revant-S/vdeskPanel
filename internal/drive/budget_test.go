@@ -8,7 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/drive/drivefake"
 )
 
 func assertRate(t *testing.T, label string, got, want float64) {

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/fusefs"
+	"vault/internal/fusefs"
 )
 
 // Mount serves store at a fresh temporary directory and unmounts it when the test ends.

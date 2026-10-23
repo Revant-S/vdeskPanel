@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 type memoryRemote struct {

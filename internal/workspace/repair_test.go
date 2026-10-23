@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 func TestFolderMovedToDesktopTrashTakesItsContents(t *testing.T) {

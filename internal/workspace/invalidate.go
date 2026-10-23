@@ -3,7 +3,7 @@ package workspace
 import (
 	"context"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 const invalidationQueueSize = 256

@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/cache"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 const authenticateChunk = 1 << 20

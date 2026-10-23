@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 const segment = vaultfile.SegmentPlaintextSize

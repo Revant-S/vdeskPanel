@@ -6,9 +6,9 @@ import (
 	"io/fs"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/fusefs"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 func (w *Workspace) Mkdir(ctx context.Context, parent model.Ino, name string) (fusefs.Attr, error) {

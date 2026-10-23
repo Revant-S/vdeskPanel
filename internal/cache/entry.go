@@ -7,7 +7,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/vaultfile"
 )
 
 // Entry is one open handle on a cached body. Entries of the same oid share one object.

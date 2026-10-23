@@ -1,8 +1,8 @@
 package workspace
 
 import (
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 func (a *remoteApply) trashRestore(op journal.Op) error {

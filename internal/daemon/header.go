@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/restore"
-	"github.com/cosmoboy/vault/internal/vaultlayout"
+	"vault/internal/config"
+	"vault/internal/crypto"
+	"vault/internal/drive"
+	"vault/internal/restore"
+	"vault/internal/vaultlayout"
 )
 
 var errNoRemoteHeader = errors.New("daemon: no vault on Drive yet")

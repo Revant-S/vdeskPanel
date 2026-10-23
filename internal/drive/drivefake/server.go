@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // InProcessURL is the base URL that HTTPClient routes to the fake without any socket.

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 func encryptTestName(name string) string { return "enc:" + name }

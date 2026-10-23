@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/fusefs/fusetest"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/procfilter"
-	"github.com/cosmoboy/vault/internal/trash"
+	"vault/internal/fusefs/fusetest"
+	"vault/internal/model"
+	"vault/internal/procfilter"
+	"vault/internal/trash"
 )
 
 func mountHome(t *testing.T) (*testHome, string) {

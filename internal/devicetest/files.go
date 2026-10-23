@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/crypto"
+	"vault/internal/fusefs"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 // The helpers below drive the workspace exactly as the FUSE layer does.

@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
 	"golang.org/x/sync/errgroup"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // executeBatch runs the batch level by level: folders by depth so parents exist first, then

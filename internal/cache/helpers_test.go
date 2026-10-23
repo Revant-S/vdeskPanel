@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/secret"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/crypto"
+	"vault/internal/model"
+	"vault/internal/secret"
+	"vault/internal/vaultfile"
 )
 
 type fetchedRange struct {

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/crypto"
+	"vault/internal/model"
 )
 
 const recordSuffix = ".vdev"

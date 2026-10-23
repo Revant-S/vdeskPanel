@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v5"
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // UploadSession is persisted by the caller so an upload can resume after a restart.

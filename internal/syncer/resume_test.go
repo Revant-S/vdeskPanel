@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/devicetest"
+	"vault/internal/drive/drivefake"
 )
 
 func TestKilledUploadResumesFromConfirmedOffset(t *testing.T) {

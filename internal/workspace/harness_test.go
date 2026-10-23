@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/cache"
+	"vault/internal/crypto"
+	"vault/internal/fusefs"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 var testKeyring = sync.OnceValue(func() *crypto.Keyring {

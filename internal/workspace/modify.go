@@ -3,8 +3,8 @@ package workspace
 import (
 	"context"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // noteLocalWrite keeps the in-memory size and time current between writes; the index is

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/cache"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 var ErrNotBackedUp = errors.New("workspace: changes are not backed up yet")

@@ -3,7 +3,7 @@ package workspace
 import (
 	"sync"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 const rootIno model.Ino = 1

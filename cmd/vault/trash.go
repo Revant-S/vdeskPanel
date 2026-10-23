@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/cosmoboy/vault/internal/api"
 	"strings"
 	"text/tabwriter"
+	"vault/internal/api"
 
 	"github.com/spf13/cobra"
 )
