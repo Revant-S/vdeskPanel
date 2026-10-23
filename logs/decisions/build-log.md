@@ -182,3 +182,7 @@ Fixes:
 - **Live-index check before shipping.** Every trash row has a Drive ID. The only synced objects without one are local-only desktop-trash entries and the root folder, so nothing live would be taken for an orphan.
 - **Test.** Unit test of the rules, plus the daemon end-to-end test running GC with no age limit on a freshly synced vault, which finds nothing.
 - **Device records.** Also refreshed on the daily pass, so a device that joined later gets its name without waiting for an unlock.
+
+## Module path (owner request)
+
+- The module was named `github.com/cosmoboy/vault` after the spec's byline. That repository doesn't exist and nothing was ever fetched from it, but the owner wants imports to show plainly that the code is the project's own. It's now `module vault`, imported as `vault/internal/...`. Third-party paths (`golang.org/x/...`, go-fuse, Wails and so on) are real dependencies and stay as they are. `01-plan.md` keeps the old name as a historical record.
