@@ -239,3 +239,13 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 
 - **Old-version delete** (`deleteSupersededRemote`): runs only in finalize, after the commit naming the new version is recorded and its MD5 verified. It skips versions another device has meanwhile moved into trash.
 - **`discardBadUpload`**: only ever deletes the Drive ID this op reserved for its own new upload (`NewDriveID`, or a copy made under it).
+
+### Fix: commits, packs and device records weren't checked against Drive's checksum
+
+- File bodies have always been MD5-verified after upload, but log files weren't. Packing deletes the single commits once the pack is written, so a pack Drive stored wrongly would have lost that history for every device that joins later.
+- `remote.Log.CreateFile` and `remote.Devices.Upload` now compare Drive's `md5Checksum` with the bytes sent. On a mismatch they delete the bad file and return an error, so the commit or pack is retried and packing never deletes the singles. Test: a transport that rewrites Drive's checksum in the reply; the upload is refused and nothing is left on Drive. It fails without the fix.
+- **Known limit.** The retry reuses the same pre-generated ID. If real Drive refuses to reuse an ID after a delete, that commit retries with a visible error instead of finishing. That's a stall, not a loss, and only possible after Drive corrupts a small upload.
+
+### Reviewed, no change
+
+- **Packing order** (`PackIfDue`): pack written before singles are deleted; any read error stops before deleting; singles created during packing aren't in the delete list.
