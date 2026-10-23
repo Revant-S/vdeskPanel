@@ -151,3 +151,10 @@ Fixes:
 - **What the index showed:** 3,598 files synced, 40,471 dirty. The open batch was blocked on one 9 MB file, whose resumable session had answered HTTP 500 more than 230 times since the day before. Drive's documented advice for repeated 5xx on a session is to start a new one.
 - **Fix:** after 2 server errors (`isServerError`, via `drive.APIError.StatusCode`), the op drops its session and reserved ID and uploads through a fresh session. A test uses the fake Drive with a session that always fails.
 - **Unlock speed:** crash recovery at unlock now writes to the index only when a Dirty file's recorded size is wrong or its op is missing. Before, it did one FULL-sync write per Dirty file: about 3 minutes for 40k files.
+
+## Fix: sync hung with no errors logged
+
+- **Goroutine dump (SIGQUIT).** Every uploader was parked in `http2ClientConn.roundTrip` on a connection that had died silently, likely across sleep or a network change. The HTTP client had no timeout and no health check, so the batch never finished. The incoming poller then waited forever on `Outgoing.Exclusive`.
+- **Per-attempt deadline.** `drive.RetryConfig.AttemptTimeout` (default 10 min, enough for a 16 MiB chunk on a slow link) gives every attempt a deadline, so a hung request fails and is retried. A test uses a transport that hangs the first request.
+- **HTTP/2 health pings.** The daemon's transport pings idle connections (`HTTP2Config.SendPingTimeout` 30 s, `PingTimeout` 15 s), so dead links are dropped long before the deadline.
+- **Diagnosis note.** `PR_SET_DUMPABLE=0` makes `/proc/<pid>` unreadable, even to the owner, so `ss -p`, fd listings and `/proc/<pid>/io` show nothing. A SIGQUIT goroutine dump via `journalctl --user -u vaultd` is the way in. It costs a restart, which the crash-safe design tolerates.
