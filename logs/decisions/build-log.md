@@ -224,3 +224,18 @@ Fixes:
 - **Fix.** `FreeLocal` asks the cache whether a body exists (`Cache.HasBody`, one stat) instead of trusting the state. The daemon connects `OnLocal` to `Workspace.NoteLocal`, so downloads show as Local in the tree view too.
 - **Test.** In the daemon end-to-end test, B reads a cloud-only file and frees it, then downloads it and frees it again; the body must be gone each time. It fails without the fix with "still has a body after Free".
 - **Restart batching.** Each restart costs the owner a password entry, so fixes from here on are installed together, after the delete-path review.
+
+## Delete-path review (owner request: critical data, no bugs)
+
+Every code path that deletes or overwrites data on Drive or on disk is reviewed for races with other devices, crashes and stale local state.
+
+### Fix: a purge could destroy a file another device had just restored
+
+- **Race.** B restores trash item X, which moves the Drive file back under `tree/`. Before A applies that, A purges X (Delete now, or the daily expiry). `purgeRemote` only checked that X still existed, so it deleted the live file for good. Even with that check fixed, A's local purge had already deleted X's object rows, and B's restore commit carries no Drive or body data. A's `trashRestore` then found no rows and did nothing, so A lost track of the live file. Its orphan GC would have deleted it from Drive 30 days later.
+- **Fix.** (1) `purgeRemote` deletes only while the file is still under `trash/`; otherwise it's skipped and marked `RestoredElsewhere`, and nothing is logged. (2) A local purge removes the trash record at once (the trash view updates immediately) but keeps the object rows until finalize. `forgetPurged` drops them only if Drive confirmed the purge or the item was already gone. Rows restored meanwhile have lost their trash ID, so they aren't touched.
+- **Tests.** Purge racing a restore: A, B and a fresh device all end up with the file. It fails without the fix with A missing the file. A normal purge keeps the rows until the sync, then drops them.
+
+### Reviewed, no change
+
+- **Old-version delete** (`deleteSupersededRemote`): runs only in finalize, after the commit naming the new version is recorded and its MD5 verified. It skips versions another device has meanwhile moved into trash.
+- **`discardBadUpload`**: only ever deletes the Drive ID this op reserved for its own new upload (`NewDriveID`, or a copy made under it).
