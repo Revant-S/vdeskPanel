@@ -24,6 +24,8 @@ type BatchOp struct {
 	Failures        int           `json:"failures,omitempty"`
 	SessionFailures int           `json:"sessionFailures,omitempty"`
 	Skipped         bool          `json:"skipped,omitempty"`
+	// RestoredElsewhere marks a purge skipped because another device restored the item first.
+	RestoredElsewhere bool `json:"restoredElsewhere,omitempty"`
 }
 
 // ObjectFacts is the object as it was when the batch formed.

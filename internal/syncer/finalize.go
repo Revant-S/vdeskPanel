@@ -111,6 +111,9 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 		}
 		return tx.DeleteObject(op.ObjectID)
 	}
+	if op.Kind == NetPurge {
+		return forgetPurged(tx, op)
+	}
 	object, err := tx.Object(op.ObjectID)
 	if errors.Is(err, index.ErrNotFound) || op.Skipped {
 		return nil
@@ -134,6 +137,28 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 		object.State = model.Local
 	}
 	return tx.PutObject(object)
+}
+
+// forgetPurged drops the rows a purge kept until Drive confirmed it. Rows another device
+// restored meanwhile no longer carry the trash ID, so they are left alone, as is everything
+// when the restore is still on its way here.
+func forgetPurged(tx *index.Tx, op BatchOp) error {
+	if op.RestoredElsewhere {
+		return nil
+	}
+	rows, err := tx.ObjectsWithTrashID(op.TrashItem)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := tx.DeleteSegmentBitmap(row.ID); err != nil {
+			return err
+		}
+		if err := tx.DeleteObject(row.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func applyContentResult(object *index.Object, result ContentResult) {

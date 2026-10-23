@@ -85,3 +85,57 @@ func TestExpiredTrashIsPurgedOnceAcrossDevices(t *testing.T) {
 		t.Fatalf("history holds %d purges of one item, want 1", purges)
 	}
 }
+
+func TestPurgeLosesToARestoreFromAnotherDevice(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.WriteFile("/keep.txt", []byte("restored on b"))
+	a.Sync()
+	a.Remove("/keep.txt")
+	a.Sync()
+	b.Poll()
+	if _, err := b.Workspace.RestoreTrash(ctx, trashIDs(t, b)["/keep.txt"]); err != nil {
+		t.Fatal(err)
+	}
+	b.Sync()
+	if _, err := a.Workspace.PurgeTrash(ctx, trashIDs(t, a)["/keep.txt"]); err != nil {
+		t.Fatal(err)
+	}
+	a.Sync()
+	a.Poll()
+	expectContent(t, a, "/keep.txt", "restored on b")
+	expectContent(t, b, "/keep.txt", "restored on b")
+	fresh := n.NewDevice(t, "fresh")
+	fresh.Poll()
+	expectContent(t, fresh, "/keep.txt", "restored on b")
+}
+
+func TestPurgeDropsTheRowsOnceDriveConfirms(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a := n.NewDevice(t, "a")
+	a.WriteFile("/gone.txt", []byte("bye"))
+	a.Sync()
+	a.Remove("/gone.txt")
+	a.Sync()
+	id := trashIDs(t, a)["/gone.txt"]
+	if _, err := a.Workspace.PurgeTrash(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	countRows := func() (count int) {
+		a.Index.View(ctx, func(tx *index.Tx) error {
+			rows, err := tx.ObjectsWithTrashID(id)
+			count = len(rows)
+			return err
+		})
+		return count
+	}
+	if countRows() != 1 {
+		t.Fatal("rows should wait for Drive to confirm the purge")
+	}
+	a.Sync()
+	if countRows() != 0 {
+		t.Fatal("rows left after the purge reached Drive")
+	}
+}
