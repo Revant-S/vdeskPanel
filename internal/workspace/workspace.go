@@ -92,6 +92,10 @@ type Workspace struct {
 
 // Open loads the index into an in-memory tree, decrypting names in parallel.
 func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
+	repairer := &Workspace{Deps: deps, config: config}
+	if _, err := repairer.repairOrphans(ctx); err != nil {
+		return nil, fmt.Errorf("repair orphaned objects: %w", err)
+	}
 	built, err := tree.Build(ctx, liveRows(ctx, deps.Index), deps.Names.DecryptName, runtime.GOMAXPROCS(0))
 	if err != nil {
 		return nil, fmt.Errorf("build tree: %w", err)
