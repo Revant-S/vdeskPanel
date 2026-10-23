@@ -2,6 +2,8 @@ package syncer_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"vault/internal/devicetest"
@@ -137,5 +139,37 @@ func TestPurgeDropsTheRowsOnceDriveConfirms(t *testing.T) {
 	a.Sync()
 	if countRows() != 0 {
 		t.Fatal("rows left after the purge reached Drive")
+	}
+}
+
+func TestOwnLogIsPackedAndStillReadsTheSame(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	n.PackEvery = 3
+	a := n.NewDevice(t, "a")
+	for i := range 5 {
+		a.WriteFile(fmt.Sprintf("/f%d.txt", i), []byte(fmt.Sprint("file ", i)))
+		a.Sync()
+	}
+	listed, err := n.Client(t, devicetest.FastDrive()).ListChildren(ctx, a.LogFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packs, singles int
+	for _, file := range listed {
+		switch {
+		case strings.HasSuffix(file.Name, ".vpack"):
+			packs++
+		case strings.HasSuffix(file.Name, ".vlog"):
+			singles++
+		}
+	}
+	if packs == 0 || singles >= 5 {
+		t.Fatalf("log folder has %d packs and %d single commits, want packing to have run", packs, singles)
+	}
+	b := n.NewDevice(t, "b")
+	b.Poll()
+	for i := range 5 {
+		expectContent(t, b, fmt.Sprintf("/f%d.txt", i), fmt.Sprint("file ", i))
 	}
 }
