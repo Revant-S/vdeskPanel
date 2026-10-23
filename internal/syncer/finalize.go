@@ -161,6 +161,37 @@ func forgetPurged(tx *index.Tx, op BatchOp) error {
 	return nil
 }
 
+// sweepIntoTrash gives a deleted folder's trash entry everything still under it without one:
+// objects another device moved, created or restored into the folder after this device
+// deleted it locally but before the delete synced. The folder's Drive copy took them along,
+// so the entry must too, or restoring it here would leave them behind. Rows already in
+// another trash entry stay where they are.
+func sweepIntoTrash(tx *index.Tx, folder index.Object, trashID string) error {
+	queue := []model.ObjectID{folder.ID}
+	for len(queue) > 0 {
+		children, err := tx.ChildrenOf(queue[0])
+		if err != nil {
+			return err
+		}
+		queue = queue[1:]
+		for _, child := range children {
+			if child.TrashID == "" {
+				child.TrashID = trashID
+				if child.DeleteVer.IsZero() {
+					child.DeleteVer = folder.DeleteVer
+				}
+				if err := tx.PutObject(child); err != nil {
+					return err
+				}
+			}
+			if child.TrashID == trashID && child.Kind == model.KindFolder {
+				queue = append(queue, child.ID)
+			}
+		}
+	}
+	return nil
+}
+
 func applyContentResult(object *index.Object, result ContentResult) {
 	object.DriveID, object.BodyID, object.BodyMD5, object.ContentMAC = result.DriveID, result.BodyID, result.BodyMD5, result.ContentMAC
 }
@@ -176,6 +207,11 @@ func (o *Outgoing) recordTrash(tx *index.Tx, op BatchOp, object index.Object, tr
 	object.TrashID = op.TrashID
 	if err := tx.PutObject(object); err != nil {
 		return err
+	}
+	if op.Folder {
+		if err := sweepIntoTrash(tx, object, op.TrashID); err != nil {
+			return err
+		}
 	}
 	return tx.PutTrash(index.TrashRecord{ID: op.TrashID, ObjectID: op.ObjectID, OriginalPath: op.Path, DeletedAt: o.Now(),
 		Device: o.config.Device, Reason: string(op.Reason), Size: object.Size, FileCount: max(op.FileCount, boolCount(!op.Folder)),
