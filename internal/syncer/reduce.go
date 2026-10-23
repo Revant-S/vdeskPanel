@@ -234,7 +234,9 @@ func coalesceFolderDeletes(net []NetOp) []NetOp {
 		movedOut[i] = true
 	}
 	for i := range net {
-		if net[i].Kind != NetDelete && net[i].Kind != NetDropLocal {
+		// A file edited since its last sync keeps its own trash entry: the folder's entry
+		// only holds what is already on Drive, so the edit would be lost inside it.
+		if net[i].Kind != NetDelete && net[i].Kind != NetDropLocal || net[i].TrashLatest {
 			continue
 		}
 		for _, f := range folders {
