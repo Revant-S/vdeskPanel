@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/cosmoboy/vault/internal/devices"
 	"github.com/cosmoboy/vault/internal/drive"
 	"github.com/cosmoboy/vault/internal/journal"
 	"github.com/cosmoboy/vault/internal/model"
@@ -15,7 +16,10 @@ type Log struct {
 	Client *drive.Client
 }
 
-var _ journal.LogRemote = (*Log)(nil)
+var (
+	_ journal.LogRemote = (*Log)(nil)
+	_ devices.Remote    = (*Devices)(nil)
+)
 
 func (l *Log) GenerateID(ctx context.Context) (string, error) {
 	ids, err := l.Client.GenerateIDs(ctx, 1)
@@ -58,4 +62,15 @@ func (l *Log) Delete(ctx context.Context, driveID string) error {
 
 func IsNotFound(err error) bool {
 	return errors.Is(err, drive.ErrNotFound)
+}
+
+// Devices serves the device registry.
+type Devices struct {
+	Log
+}
+
+func (d *Devices) Upload(ctx context.Context, folderID, name string, properties map[string]string, data []byte) error {
+	_, err := d.Client.CreateSmallFile(ctx, drive.NewFile{Name: name, ParentID: folderID, Properties: properties},
+		bytes.NewReader(data), int64(len(data)))
+	return err
 }
