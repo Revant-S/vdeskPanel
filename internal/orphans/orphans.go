@@ -33,9 +33,18 @@ type Config struct {
 }
 
 type Result struct {
+	Listed  int
 	Found   int
 	Deleted int
+	// Refused is set when so many files looked orphaned that the index, not Drive, is more
+	// likely wrong; nothing is deleted then.
+	Refused bool
 }
+
+const (
+	refuseAboveCount    = 50
+	refuseAboveFraction = 10
+)
 
 type Collector struct {
 	deps   Deps
@@ -57,7 +66,8 @@ func (c *Collector) Collect(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	candidates, err := c.walk(ctx, before)
+	var result Result
+	candidates, err := c.walk(ctx, before, &result.Listed)
 	if err != nil {
 		return Result{}, err
 	}
@@ -65,13 +75,19 @@ func (c *Collector) Collect(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	var result Result
-	cutoff := c.deps.Now().Add(-c.config.MinAge)
+	var orphans []model.RemoteFile
 	for _, file := range candidates {
-		if after[file.ID] {
-			continue
+		if !after[file.ID] {
+			orphans = append(orphans, file)
 		}
-		result.Found++
+	}
+	result.Found = len(orphans)
+	if result.Found > refuseAboveCount && result.Found*refuseAboveFraction > result.Listed {
+		result.Refused = true
+		return result, nil
+	}
+	cutoff := c.deps.Now().Add(-c.config.MinAge)
+	for _, file := range orphans {
 		if file.CreatedTime.After(cutoff) {
 			continue
 		}
@@ -83,11 +99,12 @@ func (c *Collector) Collect(ctx context.Context) (Result, error) {
 	return result, nil
 }
 
-func (c *Collector) walk(ctx context.Context, referenced map[string]bool) ([]model.RemoteFile, error) {
+func (c *Collector) walk(ctx context.Context, referenced map[string]bool, listed *int) ([]model.RemoteFile, error) {
 	trash, err := c.deps.Remote.ListChildren(ctx, c.config.TrashFolderID)
 	if err != nil {
 		return nil, fmt.Errorf("list trash: %w", err)
 	}
+	*listed += len(trash)
 	candidates := c.unreferenced(trash, referenced)
 	level := []string{c.config.TreeFolderID}
 	for len(level) > 0 {
@@ -97,6 +114,7 @@ func (c *Collector) walk(ctx context.Context, referenced map[string]bool) ([]mod
 		}
 		level = nil
 		for _, files := range listings {
+			*listed += len(files)
 			candidates = append(candidates, c.unreferenced(files, referenced)...)
 			for _, file := range files {
 				if file.Folder && referenced[file.ID] {

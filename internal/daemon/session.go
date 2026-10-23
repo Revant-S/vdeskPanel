@@ -133,6 +133,7 @@ func (s *session) start() {
 	group.Go(func() error { return s.expireTrashDaily(ctx) })
 	group.Go(func() error { s.publishDevice(ctx); return nil })
 	group.Go(func() error { return s.watchBackup(ctx) })
+	group.Go(func() error { return s.collectOrphansHourly(ctx) })
 }
 
 // publishDevice writes this device's record. Offline it is retried at the next unlock; the
@@ -152,7 +153,6 @@ func (s *session) expireTrashDaily(ctx context.Context) error {
 		} else if expired > 0 {
 			s.daemon.Logger.Info("expired trash items", "count", expired)
 		}
-		s.collectOrphansIfDue(ctx)
 		if _, err := s.devices.Refresh(ctx); err != nil {
 			s.daemon.Logger.Debug("refresh device records", "err", err)
 		}

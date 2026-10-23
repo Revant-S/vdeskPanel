@@ -193,3 +193,9 @@ Fixes:
 - Settings keys match `config.toml` names. `set` reads the current settings, changes only the named keys and sends the whole set back, so the daemon's validation still applies.
 - `vault status` now reports offline (from Drive's last answer) and the transfer speed.
 - Tried read-only on the live vault: history, devices and settings all answer.
+
+## Fix: orphan GC ran on a device that hadn't caught up
+
+- **Found during acceptance.** Instance B joined the real vault and ran GC within seconds, while its catch-up was still downloading A's log. With nothing applied yet, all 22 top-level items of the vault looked orphaned. Nothing was deleted only because every file was under 30 days old. On an older vault, a fresh join would have wiped `tree/`. The installed A daemon never had GC, so no data was at risk.
+- **Gate.** `Incoming.CaughtUpAt` is set when a poll (incremental or a rebuild from listing) has ingested and applied the whole feed. GC runs only if that happened within two idle intervals plus a minute. It now checks hourly in its own loop, so a pass skipped at unlock is retried later, still at most once per 24 h.
+- **Backstop.** If more than 50 files, and more than a tenth of everything listed, look orphaned, GC deletes nothing and logs a warning. Real orphans come from rare crashes and races, so a share that large means the index is behind or wrong.

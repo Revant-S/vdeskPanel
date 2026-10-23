@@ -58,6 +58,7 @@ type Incoming struct {
 	mu           sync.Mutex
 	deviceFolder map[string]bool
 	lastActivity time.Time
+	caughtUp     time.Time
 }
 
 func NewIncoming(deps IncomingDeps, config IncomingConfig) *Incoming {
@@ -100,6 +101,16 @@ func (i *Incoming) interval() time.Duration {
 // them. The page token is saved only after the commits it covers are stored, so a crash
 // re-reads changes rather than skipping them.
 func (i *Incoming) PollOnce(ctx context.Context) error {
+	if err := i.poll(ctx); err != nil {
+		return err
+	}
+	i.mu.Lock()
+	i.caughtUp = i.Now()
+	i.mu.Unlock()
+	return nil
+}
+
+func (i *Incoming) poll(ctx context.Context) error {
 	token, err := i.savedToken(ctx)
 	if err != nil {
 		return err
@@ -124,6 +135,14 @@ func (i *Incoming) PollOnce(ctx context.Context) error {
 		return err
 	}
 	return i.saveToken(ctx, next)
+}
+
+// CaughtUpAt is when a poll last finished with every commit in the changes feed ingested
+// and applied. The zero time means not yet in this session.
+func (i *Incoming) CaughtUpAt() time.Time {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.caughtUp
 }
 
 func (i *Incoming) changedLogFolders(ctx context.Context, token string) ([]string, string, error) {
