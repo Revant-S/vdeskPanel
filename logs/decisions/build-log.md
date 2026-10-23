@@ -158,3 +158,17 @@ Fixes:
 - **Per-attempt deadline.** `drive.RetryConfig.AttemptTimeout` (default 10 min, enough for a 16 MiB chunk on a slow link) gives every attempt a deadline, so a hung request fails and is retried. A test uses a transport that hangs the first request.
 - **HTTP/2 health pings.** The daemon's transport pings idle connections (`HTTP2Config.SendPingTimeout` 30 s, `PingTimeout` 15 s), so dead links are dropped long before the deadline.
 - **Diagnosis note.** `PR_SET_DUMPABLE=0` makes `/proc/<pid>` unreadable, even to the owner, so `ss -p`, fd listings and `/proc/<pid>/io` show nothing. A SIGQUIT goroutine dump via `journalctl --user -u vaultd` is the way in. It costs a restart, which the crash-safe design tolerates.
+
+## Device records (spec §5)
+
+- **Package.** `internal/devices` owns `devices/<id>.vdev`. A record holds name, first seen, retired and updated time, sealed with the log subkey and `DeviceAD(id)`, so a record renamed to another device's file name fails to open.
+- **Replacing a record.** Upload the new copy, then delete the old ones, so the Drive client needs no content-update call. A crash in between leaves two copies, and readers take the newest `updated`.
+- **When records are written.** Each device publishes its own at unlock (in the background, so offline unlock isn't held up), keeping first seen and retired from the existing record. Retire writes the target device's record. This replaces the local-only `devices/retired` KV mark; the live index had none.
+- **Device list.** It merges the log with the records, and the record's name and first-seen win. Records are read at unlock and on every publish, then served from memory, so the history view never waits on Drive. A device that joins after this one unlocked shows its log name until the next unlock.
+- **Known race.** A device publishing its own record at the same moment another device retires it can drop the retire. Retiring again fixes it.
+
+## Backup alert (spec §12)
+
+- **Online.** `drive.Client.LastContact` records any answer from Drive, including error answers. The daemon counts as online while Drive answered within two idle poll intervals plus a minute (2 min by default). `status.Online` uses the same check instead of a hard-coded true.
+- **Rule.** One notification per stretch in which the backlog stays non-empty for 10 minutes online. Time offline restarts the count, and the stretch ends only when the backlog reaches zero. This is per stretch, not per file: per-file ages would mean decoding every pending op each minute. With a long first import it fires once, as a heads-up.
+- **Byte formatting.** Moved from the CLI to `api.FormatBytes`, so the daemon's notification and the CLI print sizes the same way.

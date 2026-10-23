@@ -132,6 +132,7 @@ func (s *session) start() {
 	group.Go(func() error { return s.workspace.RunInvalidations(ctx) })
 	group.Go(func() error { return s.expireTrashDaily(ctx) })
 	group.Go(func() error { s.publishDevice(ctx); return nil })
+	group.Go(func() error { return s.watchBackup(ctx) })
 }
 
 // publishDevice writes this device's record. Offline it is retried at the next unlock; the

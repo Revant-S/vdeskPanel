@@ -102,3 +102,29 @@ func TestRetryLogsCarryNoNames(t *testing.T) {
 	}
 	plaintextcheck.AssertBytesClean(t, "logs", logs.Bytes(), "secret-name", "secret body")
 }
+
+func TestLastContactCountsErrorAnswersButNotNetworkFailures(t *testing.T) {
+	server, client := newFakeAndClient(t)
+	if !client.LastContact().IsZero() {
+		t.Fatal("contact before any request")
+	}
+	server.InjectFault(drivefake.Fault{Status: http.StatusForbidden, Reason: "insufficientFilePermissions", Times: 1})
+	client.StartPageToken(context.Background())
+	if client.LastContact().IsZero() {
+		t.Fatal("an error answer from Drive is still contact")
+	}
+
+	offline := newTestClient(t, server, Deps{HTTPClient: &http.Client{Transport: &failingTransport{}}})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	offline.StartPageToken(ctx)
+	if !offline.LastContact().IsZero() {
+		t.Fatal("a failed connection counted as contact")
+	}
+}
+
+type failingTransport struct{}
+
+func (*failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("network is unreachable")
+}
