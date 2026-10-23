@@ -15,4 +15,11 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 | Move it back: logged as created, no upload, trash entry untouched | **Pass.** Same ciphertext MD5 as the trash copy under a new Drive ID, so it was a server-side copy. |
 | Trash Restore and Delete now | **Pass.** Restoring while a different file holds the path gives `name (restored).ext` with identical contents. |
 | Orphan GC on a fresh join | **Bug found and fixed** (see build-log, "Fix: orphan GC ran on a device that hadn't caught up"). |
-| Unsynced edit on A loses to a newer edit on B; A's version in trash as superseded | **Pending.** A applied B's version (after 112 s, same batch wait as above). A's own version is held by one queued `supersede` op, which is behind the backlog (A's queue: 19k create, 17k modify, 38k attr ops). Recheck once A drains. |
+| Unsynced edit on A loses to a newer edit on B; A's version in trash as superseded | **Pass** after the fix below: A's trash shows `/_acceptance/edit.txt  superseded by laptop-b`. Earlier note: A applied B's version (after 112 s, same batch wait as above). A's own version is held by one queued `supersede` op, which is behind the backlog (A's queue: 19k create, 17k modify, 38k attr ops). Recheck once A drains. |
+
+## 2026-10-23, A on the new build and idle
+
+| Check | Result |
+|---|---|
+| Edit on one device visible on the other within 30 s | **Pass.** A→B 23 s, B→A 21 s. |
+| Stuck "1 file not backed up" and restore on A | **Bug found and fixed** (build-log, "Fix: a trashed file stayed not backed up"). After installing the fix, A is `All backed up` and downloaded B's test files. |
