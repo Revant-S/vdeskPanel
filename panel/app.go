@@ -10,8 +10,8 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/panel/layout"
+	"vault/internal/api"
+	"vault/panel/layout"
 )
 
 const historyPageSize = 200

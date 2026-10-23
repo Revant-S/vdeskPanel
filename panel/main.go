@@ -11,8 +11,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
+	"vault/internal/api"
+	"vault/internal/config"
 )
 
 //go:embed all:frontend/dist

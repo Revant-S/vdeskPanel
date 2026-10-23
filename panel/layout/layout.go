@@ -6,7 +6,7 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/cosmoboy/vault/internal/api"
+	"vault/internal/api"
 )
 
 // PaletteSize is the number of lane colours the frontend defines.
