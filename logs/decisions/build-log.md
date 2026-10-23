@@ -336,3 +336,52 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Supersede window without a crash.** Between an apply transaction committing and its body move, a read of the losing file opens it as cloud-only with the remote BodyID and resets the local edit. The window is microseconds. Fixing it means moving the body before the commit, which needs a rollback path.
 - **Packing.** A crash between writing a pack and deleting the singles makes the next `PackIfDue` write a second pack with the same commits. Readers dedupe, so nothing is lost. `PackIfDue` isn't called anywhere in production yet, so log folders only grow.
 - **Review note (merge of test/crash-recovery).** Reviewed all five fixes before merging. One change: a failed body repair at open (`RecoverInterruptedRewrite`) now logs and carries on instead of failing `workspace.Open`, so a repair attempt can never be what keeps a vault from unlocking. A body that can't be opened at all still fails as before, through `bodySize`. `Cache.Share` counts writers through `newEntry`, so `Free` still sees a shared writable handle.
+
+## Sync conflicts and ordering bug hunt (test/sync-conflicts)
+
+Scenarios run with every device synced and polled until quiet, then checked for one tree (paths and contents), one trash, zero backlog, and the same tree on a freshly joined device (`converge_test.go`).
+
+### Fix: an edit inside a folder deleted on another device was lost or resurrected
+
+- **Symptoms.** A deletes `/P` (with `/P/Q/deep.txt`) while B edits `deep.txt`. (1) If B's edit was older, A's trash entry kept pointing at the version B's finalize had just deleted from Drive: restoring `/P` on A gave a 404 for `deep.txt`, and B's edit sat on Drive unreferenced until orphan GC. (2) If B's edit was newer, or A had not synced its delete yet, A brought `deep.txt` back to life with a deleted parent; on the next start it appeared in `/Recovered` on A only.
+- **Cause.** `contentForDeleted` handled every deleted object as if it were deleted on its own (rows 4 and 5): a newer edit resurrects, an older one is ignored. For a file inside a deleted folder, row 7 says the folder delete wins whatever the stamps, and the edit's body lives inside the trashed folder on Drive, replacing the version the trash entry named.
+- **Fix.** When the object's parent isn't live, the edit never resurrects it; the trashed row takes the edit's body if its content stamp is newer, so every device's trash entry names the same, existing version.
+- **Tests.** `TestOlderEditInsideFolderDeletedElsewhere`, `TestNewerEditInsideFolderDeletedElsewhere`, `TestEditInsideFolderDeletedHereButNotYetSynced`: the folder stays deleted on A, B and a fresh device across restarts, and restoring it brings back B's edit. All three fail without the fix.
+
+### Fix: an edit made just before a delete was lost to every other device
+
+- **Symptoms.** (1) Edit a synced file and delete it before the edit syncs (R19). The trash entry uploads the edited version and the old version is deleted from Drive, but other devices and fresh joins kept pointing at the old one: restoring it there gave a 404. (2) Edit a file, then `rm -r` its folder before syncing. The file's delete was folded into the folder's trash entry, which never uploads, so the edit was freed from the cache and lost on every device; the row kept the edited size, so even the old version read back as a 416.
+- **Causes.** (1) The `delete` op's trash reference carried the new Drive ID but no body ID or MD5, and receivers ignored it. (2) `coalesceFolderDeletes` subsumed deletes that needed a trash upload.
+- **Fix.** (1) The trash reference also carries the uploaded body's ID, MD5 and size (new optional fields), and a receiver points the deleted object at that version. (2) A delete with `TrashLatest` is never folded into a folder's entry; it gets its own trash item with the latest body.
+- **Tests.** `TestFileEditedThenDeletedBeforeSyncRestoresElsewhere` and `TestFolderDeleteKeepsAnUnsyncedEditInside`: B restores and reads the edit. Both fail without the fix.
+
+### Fix: moving something out of a folder deleted on another device diverged
+
+- **Symptom.** A deletes `/P` while B moves `/P/Q/deep.txt` (or `/P/Q`) out of it, possibly adding files inside the moved folder. A ended with nothing, B kept the moved items live: a permanent divergence, and the same happened with three devices (A moves a file out, B edits it, C deletes the folder). After a restore on A, the moved-out rows also came back live but outside the tree until the next start, where a name taken by then would have stopped the tree from building.
+- **Causes.** (1) A folder delete's commit named only the folder; each receiver took the folder's subtree from its own view, which no longer held what it had moved out. (2) A remote move on a deleted row still changed its parent, so a restore brought back only part of the item.
+- **Fix.** Row 7 says the folder delete wins over ops on descendants. The folder delete op now lists what it folded in, with where each one was (`Contents`, a new optional field). A receiver also deletes those it has moved out, and puts them back where the deleter had them. A remote move no longer changes a deleted row (rows 6 and 7: the delete wins), so a restore brings the item back as it was deleted, and every restored row takes the restore's placement stamp so later moves resolve the same way everywhere.
+- **Known limit.** On Drive, the moved-out files stay where the mover put them (under `tree/`, outside the trashed folder). The index is authoritative, so reads, restores and orphan GC go by Drive ID and are unaffected; a purge leaves those Drive files to orphan GC after 30 days.
+- **Tests.** `TestMoveOutOfFolderDeletedElsewhere` (both sync orders, then restore and restart) and `TestThreeDevicesMoveEditAndFolderDelete`. Both fail without the fix.
+
+### Fix: two moves forming a cycle left the devices diverged for good
+
+- **Symptom.** A moves `/X` into `/Y` while B moves `/Y` into `/X`. A kept `/Y/X`, B kept `/X/Y`, and nothing ever reconciled them.
+- **Cause.** Row 9 wasn't implemented. On A the tree refused B's newer move ("remote move refused locally") and dropped it; on B, A's move was newer than X's placement (B had moved Y, not X), so B applied it, and in other orders the moves simply crossed.
+- **Fix.** `breakMoveCycle`: before a remote folder move, if its target lies inside the moving folder, compare the incoming stamp with the placement of the folder inside the chain. If the incoming move is older it is skipped. If it is newer, that folder goes back to the root (renamed `(conflict <device>)` if the name is taken) and the move back is logged, as row 9 asks of the older move's author.
+- **Test.** `TestMoveCycleNewerMoveWins`, both sync orders, with restarts: both devices and a fresh one end with `/X/Y`. It fails without the fix with the two devices diverged.
+
+### Fix: a restore into a folder deleted on another device diverged
+
+- **Symptom.** A restores `/D/f.txt` while B deletes `/D`. A put `f.txt` into `/D`'s trash entry; B made the rows live with a deleted parent, so on its next start `f.txt` appeared in `/Recovered` on B only.
+- **Cause.** `trashRestore` cleared the trash ID first and only then noticed the parent wasn't live.
+- **Fix.** A remote restore into a deleted folder joins that folder's trash entry, as a create or move into it already does (row 7).
+- **Test.** `TestRestoreIntoFolderDeletedElsewhere`: both devices and a fresh one agree after restarts, and restoring `/D` brings back both files. It fails without the fix.
+- **Not fixed (noted).** When the folder's delete is still pending on the receiver (not yet synced), a move, create or restore into it gets the folder's delete stamp but no trash ID, and the folder's batch doesn't pick it up, so it isn't part of the trash entry there. This predates this branch (`hideUnder`); a fix would have the folder's finalize sweep such rows into its entry.
+- **Passed without change.** Restoring a folder, then adding, editing and renaming inside it before the sync (`TestRestoreFolderThenAddInsideBeforeSync`).
+
+### Noted, not fixed
+
+- **Row 7 notice.** When a folder delete takes a descendant that another device already edited and synced, that device trashes it silently; the table asks it to log `superseded (parent deleted on <device>)` and notify. Nothing is lost (the edit is in the folder's entry), so it's cosmetic.
+- **Commit size.** A folder delete's `Contents` lists every object it folded in, so an `rm -r` of tens of thousands of files makes one commit of a few hundred KB compressed. Fine for now; a pack or a cap would bound it.
+- **`TrashRef.PreviousDriveID`** is declared but never set or read.
+- **Passed without change:** editor save (rename over) and vim save racing a remote edit, move vs move, file delete vs newer move, move into a folder deleted elsewhere (both orders), folder rename while another device adds and edits inside, three devices editing one file, a device offline for 30+ commits with a folder rename in between, delete-and-recreate vs a remote edit.

@@ -98,9 +98,9 @@ func (w *Workspace) persistRestore(ctx context.Context, record index.TrashRecord
 	stamp := w.Clock.Next()
 	return w.update(ctx, func(tx *index.Tx) error {
 		for _, row := range rows {
-			row.TrashID, row.DeleteVer = "", model.Stamp{}
+			row.TrashID, row.DeleteVer, row.PlacementVer = "", model.Stamp{}, stamp
 			if row.ID == record.ObjectID {
-				row.ParentID, row.EncName, row.PlacementVer = parentID, encName, stamp
+				row.ParentID, row.EncName = parentID, encName
 			}
 			if row.Kind == model.KindFile {
 				row.State = model.CloudOnly

@@ -25,7 +25,7 @@ func (a *remoteApply) delete(op journal.Op) error {
 	}
 	victims := []index.Object{object}
 	if op.Folder {
-		if victims, err = a.subtreeObjects(object); err != nil {
+		if victims, err = a.folderDeleteVictims(object, op.Contents); err != nil {
 			return err
 		}
 	}
@@ -79,10 +79,24 @@ func (a *remoteApply) trashLocally(object index.Object, op journal.Op, reason mo
 		return err
 	}
 	object.DeleteVer, object.TrashID = op.Version, op.Trash.ID
+	if object.ID == op.ObjectID && op.Trash.BodyID != nil {
+		if err := a.takeTrashedVersion(&object, op.Trash); err != nil {
+			return err
+		}
+	}
 	if err := a.tx.PutObject(object); err != nil {
 		return err
 	}
 	return a.removeFromView(object.ID)
+}
+
+// takeTrashedVersion points the object at the version its deleter uploaded into the trash,
+// since the deleter removes the version this device knew.
+func (a *remoteApply) takeTrashedVersion(object *index.Object, trash *journal.TrashRef) error {
+	object.DriveID, object.BodyID, object.BodyMD5, object.ContentMAC = trash.DriveID, trash.BodyID, trash.BodyMD5, trash.ContentMAC
+	object.Size, object.State = trash.Size, model.CloudOnly
+	a.dropLocalBody(object.ID)
+	return a.tx.DeleteSegmentBitmap(object.ID)
 }
 
 func (a *remoteApply) removeFromView(id model.ObjectID) error {
@@ -99,6 +113,47 @@ func (a *remoteApply) removeFromView(id model.ObjectID) error {
 		a.dropLocalBody(id)
 	}
 	return nil
+}
+
+// folderDeleteVictims is the folder's subtree here, plus whatever the deleting device had
+// inside it and this device has since moved out: the folder delete wins over those moves,
+// so they go back to where the deleting device had them.
+func (a *remoteApply) folderDeleteVictims(folder index.Object, contents []journal.Placement) ([]index.Object, error) {
+	victims, err := a.subtreeObjects(folder)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[model.ObjectID]bool{}
+	for _, victim := range victims {
+		seen[victim.ID] = true
+	}
+	placements := map[model.ObjectID]journal.Placement{}
+	for _, placed := range contents {
+		placements[placed.ObjectID] = placed
+		object, found, err := a.load(placed.ObjectID)
+		if err != nil {
+			return nil, err
+		}
+		if !found || seen[object.ID] || object.TrashID != "" {
+			continue
+		}
+		moved, err := a.subtreeObjects(object)
+		if err != nil {
+			return nil, err
+		}
+		for _, victim := range moved {
+			if !seen[victim.ID] {
+				seen[victim.ID] = true
+				victims = append(victims, victim)
+			}
+		}
+	}
+	for i := range victims {
+		if placed, ok := placements[victims[i].ID]; ok {
+			victims[i].ParentID, victims[i].EncName = placed.ParentID, placed.EncName
+		}
+	}
+	return victims, nil
 }
 
 func (a *remoteApply) subtreeObjects(folder index.Object) ([]index.Object, error) {

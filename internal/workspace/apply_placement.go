@@ -7,16 +7,14 @@ import (
 )
 
 // placement applies a remote rename or move when it is newer than this device's placement.
-// A delete here wins over any move, and a move whose target is gone hides the object with it.
+// A delete here wins over any move, which leaves the object where its delete found it so a
+// restore puts it back there; a move whose target is gone hides the object with it.
 func (a *remoteApply) placement(op journal.Op) error {
 	object, found, err := a.load(op.ObjectID)
-	if err != nil || !found || !op.Version.After(object.PlacementVer) {
+	if err != nil || !found || !isLive(object) || !op.Version.After(object.PlacementVer) {
 		return err
 	}
 	object.ParentID, object.EncName, object.PlacementVer = op.ParentID, op.EncName, op.Version
-	if !isLive(object) {
-		return a.tx.PutObject(object)
-	}
 	if err := a.dropOps(object.ID, model.LocalMove); err != nil {
 		return err
 	}
@@ -27,6 +25,11 @@ func (a *remoteApply) placement(op journal.Op) error {
 	}
 	if !parentLive {
 		return a.hideUnder(object, parent, entry, inTree)
+	}
+	if inTree && entry.IsFolder() {
+		if applies, err := a.breakMoveCycle(object.ID, op.ParentID, op.Version); err != nil || !applies {
+			return err
+		}
 	}
 	name, err := a.ws.Names.DecryptName(object.ID, op.EncName)
 	if err != nil {
