@@ -26,7 +26,9 @@ func callWithRetry[T any](ctx context.Context, c *Client, bucket *adaptiveBucket
 				return zero, backoff.Permanent(err)
 			}
 		}
-		result, err := attempt(ctx)
+		attemptCtx, cancel := c.attemptContext(ctx)
+		result, err := attempt(attemptCtx)
+		cancel()
 		if err == nil {
 			return result, nil
 		}
@@ -91,4 +93,11 @@ func statusOf(err error) int {
 		return apiErr.Status
 	}
 	return 0
+}
+
+func (c *Client) attemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if c.retry.AttemptTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, c.retry.AttemptTimeout)
 }
