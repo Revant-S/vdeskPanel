@@ -195,3 +195,53 @@ func keysOf(t *testing.T, keyring *crypto.Keyring) *crypto.Keys {
 	}
 	return keys
 }
+
+func TestIngestKeepsWhatArrivedWhenAnotherFileFails(t *testing.T) {
+	ctx := context.Background()
+	remote := newFakeLogRemote()
+	a := newTestDevice(t, remote, "d-a", 500, steppingWall())
+	b := newTestDevice(t, remote, "d-b", 500, steppingWall())
+	for _, id := range []model.ObjectID{"aa", "bb", "cc"} {
+		a.record(t, Op{Kind: OpCreate, ObjectID: id})
+	}
+	files, _ := remote.ListFolder(ctx, a.folder)
+	remote.failing[files[0].ID] = true
+	if _, err := b.journal.Ingest(ctx, files, nil); err == nil {
+		t.Fatal("a failed download was not reported")
+	}
+	remote.failing[files[0].ID] = false
+	stored, err := b.journal.Ingest(ctx, files, nil)
+	if err != nil || len(stored) != 1 {
+		t.Fatalf("second ingest stored %d commits (%v), want only the one that failed", len(stored), err)
+	}
+	for _, file := range files[1:] {
+		if remote.downloads[file.ID] != 1 {
+			t.Fatalf("%s downloaded %d times, want once", file.Name, remote.downloads[file.ID])
+		}
+	}
+}
+
+func TestIngestDownloadsEachPackOnce(t *testing.T) {
+	ctx := context.Background()
+	remote := newFakeLogRemote()
+	a := newTestDevice(t, remote, "d-a", 2, steppingWall())
+	b := newTestDevice(t, remote, "d-b", 500, steppingWall())
+	for _, id := range []model.ObjectID{"aa", "bb", "cc"} {
+		a.record(t, Op{Kind: OpCreate, ObjectID: id})
+	}
+	if err := a.journal.PackIfDue(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		files, _ := remote.ListFolder(ctx, a.folder)
+		if _, err := b.journal.Ingest(ctx, files, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, _ := remote.ListFolder(ctx, a.folder)
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, packSuffix) && remote.downloads[file.ID] != 1 {
+			t.Fatalf("pack downloaded %d times, want once", remote.downloads[file.ID])
+		}
+	}
+}
