@@ -14,15 +14,16 @@ import (
 // each step, so a restart resumes exactly where the crash happened.
 type BatchOp struct {
 	NetOp
-	Object     ObjectFacts   `json:"object"`
-	NewDriveID string        `json:"newDriveId,omitempty"`
-	TrashID    string        `json:"trashId,omitempty"`
-	Snapshot   *SnapshotInfo `json:"snapshot,omitempty"`
-	Session    UploadSession `json:"session,omitzero"`
-	Result     ContentResult `json:"result,omitzero"`
-	Done       bool          `json:"done,omitempty"`
-	Failures   int           `json:"failures,omitempty"`
-	Skipped    bool          `json:"skipped,omitempty"`
+	Object          ObjectFacts   `json:"object"`
+	NewDriveID      string        `json:"newDriveId,omitempty"`
+	TrashID         string        `json:"trashId,omitempty"`
+	Snapshot        *SnapshotInfo `json:"snapshot,omitempty"`
+	Session         UploadSession `json:"session,omitzero"`
+	Result          ContentResult `json:"result,omitzero"`
+	Done            bool          `json:"done,omitempty"`
+	Failures        int           `json:"failures,omitempty"`
+	SessionFailures int           `json:"sessionFailures,omitempty"`
+	Skipped         bool          `json:"skipped,omitempty"`
 }
 
 // ObjectFacts is the object as it was when the batch formed.

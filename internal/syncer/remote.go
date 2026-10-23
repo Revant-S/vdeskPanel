@@ -51,3 +51,10 @@ type RemoteStore interface {
 }
 
 const smallFileLimit = 5 << 20
+
+// isServerError reports a 5xx answer from Drive, which for an upload session often means the
+// session itself is broken and only a new one will work.
+func isServerError(err error) bool {
+	var status interface{ StatusCode() int }
+	return errors.As(err, &status) && status.StatusCode() >= 500
+}
