@@ -101,14 +101,21 @@ func (w *Workspace) recoverDirtyFile(ctx context.Context, object index.Object) e
 		entry.Size = size
 		w.tree.Update(entry)
 	}
+	var queued bool
+	if err := w.Index.View(ctx, func(tx *index.Tx) error {
+		ops, err := tx.OpsForObject(object.ID)
+		queued = len(ops) > 0
+		return err
+	}); err != nil {
+		return err
+	}
+	if queued && size == object.Size {
+		return nil
+	}
 	path, _ := w.tree.PathOf(object.ID)
 	return w.update(ctx, func(tx *index.Tx) error {
 		object.Size = size
-		ops, err := tx.OpsForObject(object.ID)
-		if err != nil {
-			return err
-		}
-		if len(ops) > 0 {
+		if queued {
 			return tx.PutObject(object)
 		}
 		stamp := w.Clock.Next()
