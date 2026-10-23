@@ -320,3 +320,12 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Cause.** The same split as adoption: `renameFileOver` renames the body, then writes the index in a separate step.
 - **Fix.** `moveRenamedBody` records the rename in kv (`workspace/rename-over/<source>` → target) before the move, and `persistRenameOver` clears it. On open, after the tree is built, `finishRenamesOver` completes a recorded rename whose source body is gone (`finishRenameOver`, the second half of `renameFileOver`) and drops the record otherwise.
 - **Test.** `TestCrashMidRenameOverStillUnlocksAndKeepsTheSave`: body moved, restart, the target reads the new bytes, the temp name is gone and the target is Dirty. It fails without the fix with "no local body".
+
+## FUSE data integrity (taken over from the stopped FUSE agent)
+
+### Fix: renaming a still-open temp file over a target gave the target two bodies
+
+- **Symptom.** A program that renames its temp file over the target before closing it (write, rename, keep writing, close) and anyone opening the target meanwhile: the reader read 64 KiB, then EIO. A second writer through the target would have rewritten segments from a stale size and corrupted the body.
+- **Cause.** The rename moves the body file and rebinds the open handles to the target, but the cache still registers the shared body object under the source's ID. Opening the target found nothing under its own ID and opened a second object on the same file, with its own idea of the size and last segment.
+- **Fix.** `openCacheEntry` first shares the body of an attached handle already open on the object (`Cache.Share`), unless that entry is closed or its body was replaced. Normally that's the object the cache would have returned anyway.
+- **Test.** `TestRenameOverWhileTempStillOpenKeepsOneBody`: write, rename over, open a reader, keep writing; the reader sees every byte, and so does a read after close. It fails without the fix with EIO at 65,536 bytes.

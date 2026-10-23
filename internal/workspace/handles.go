@@ -3,6 +3,7 @@ package workspace
 import (
 	"sync"
 
+	"vault/internal/cache"
 	"vault/internal/model"
 )
 
@@ -46,6 +47,18 @@ func (r *handleRegistry) hasWriter(id model.ObjectID) bool {
 		}
 	}
 	return false
+}
+
+// liveEntry returns the cache entry of any attached handle on id.
+func (r *handleRegistry) liveEntry(id model.ObjectID) *cache.Entry {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for h := range r.byObject[id] {
+		if !h.detached.Load() {
+			return h.entry
+		}
+	}
+	return nil
 }
 
 func (r *handleRegistry) detach(id model.ObjectID) {
