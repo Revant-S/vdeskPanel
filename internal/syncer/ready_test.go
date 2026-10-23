@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 var readiness = ReadinessConfig{QuietPeriod: 2 * time.Second, DeleteHold: 3 * time.Second, MaxDeleteHold: 30 * time.Second, MaxBatch: 200}

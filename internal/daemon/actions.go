@@ -7,12 +7,12 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/devices"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/workspace"
+	"vault/internal/api"
+	"vault/internal/config"
+	"vault/internal/devices"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/workspace"
 )
 
 func (d *Daemon) RestoreTrash(ctx context.Context, id string) (string, error) {

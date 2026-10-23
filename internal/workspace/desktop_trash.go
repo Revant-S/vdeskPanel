@@ -3,7 +3,7 @@ package workspace
 import (
 	"context"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // Nautilus "Move to Trash" renames into .Trash-<uid>/files/ at the mount root. The panel's

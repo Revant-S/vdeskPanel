@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/devicetest"
+	"vault/internal/drive/drivefake"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 func driveFilesUnder(t *testing.T, n *devicetest.Network, parent string) []model.RemoteFile {

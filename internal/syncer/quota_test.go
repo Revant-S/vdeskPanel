@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/devicetest"
+	"vault/internal/drive"
+	"vault/internal/drive/drivefake"
 )
 
 // The real figures are a Drive limit of about 3 creates per second against a budget of 3

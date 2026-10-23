@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
+	"vault/internal/api"
 )
 
 func TestStatusLinesMatchTheSpec(t *testing.T) {

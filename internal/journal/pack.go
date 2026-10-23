@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/index"
+	"vault/internal/index"
 )
 
 func incrementSingles(tx *index.Tx) error {

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 var ErrChangesExpired = errors.New("syncer: changes page token expired")

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/cosmoboy/vault/internal/secret"
+	"vault/internal/secret"
 )
 
 // maxPasswordBytes caps password bodies (R20). net/http's own read buffers may still hold

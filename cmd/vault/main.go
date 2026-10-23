@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
 	"github.com/spf13/cobra"
+	"vault/internal/api"
+	"vault/internal/config"
 )
 
 type cli struct {

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/orphans"
+	"vault/internal/api"
+	"vault/internal/config"
+	"vault/internal/devicetest"
+	"vault/internal/drive/drivefake"
+	"vault/internal/orphans"
 )
 
 func newTestDaemon(t *testing.T, fake *drivefake.Server, name string) *Daemon {

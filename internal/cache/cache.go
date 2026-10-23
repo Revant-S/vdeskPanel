@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 var (

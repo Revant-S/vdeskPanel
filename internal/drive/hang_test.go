@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/drive/drivefake"
 )
 
 // hangOnce stands in for a connection that died without closing: the first request never

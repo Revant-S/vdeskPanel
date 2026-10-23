@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 func (t *Tx) KV(key string) ([]byte, bool, error) {

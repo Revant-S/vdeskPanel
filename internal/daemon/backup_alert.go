@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/notify"
+	"vault/internal/api"
+	"vault/internal/notify"
 )
 
 const (

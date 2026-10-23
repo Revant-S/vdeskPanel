@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/drive/drivefake"
 )
 
 func readBack(t *testing.T, file *os.File, offset, length int64) []byte {

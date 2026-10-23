@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/crypto"
+	"vault/internal/crypto"
 )
 
 type ResealResult struct {

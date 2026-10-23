@@ -6,9 +6,9 @@ import (
 	"os"
 	"slices"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/cache"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // finalizeBatch runs after the commit: it deletes superseded Drive versions, settles local

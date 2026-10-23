@@ -3,8 +3,8 @@ package crypto
 import (
 	"fmt"
 
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/crypto/argon2"
+	"vault/internal/secret"
 )
 
 type KDFParams struct {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/crypto"
+	"vault/internal/crypto"
 )
 
 type Tx struct {

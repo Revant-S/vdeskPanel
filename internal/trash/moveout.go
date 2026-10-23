@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 const maxTracked = 4096

@@ -9,9 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/oauth2"
+	"vault/internal/crypto"
+	"vault/internal/secret"
 )
 
 var ErrNoToken = errors.New("auth: no saved Google token")

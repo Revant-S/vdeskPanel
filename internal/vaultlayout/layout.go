@@ -6,8 +6,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/drive"
+	"vault/internal/model"
 )
 
 const (

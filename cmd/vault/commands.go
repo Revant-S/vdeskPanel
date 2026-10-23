@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
 	"github.com/spf13/cobra"
+	"vault/internal/api"
 )
 
 func (c *cli) statusCommand() *cobra.Command {

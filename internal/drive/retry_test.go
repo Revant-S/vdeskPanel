@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/plaintextcheck"
+	"vault/internal/drive/drivefake"
+	"vault/internal/plaintextcheck"
 )
 
 func TestTransientFailuresAreRetried(t *testing.T) {

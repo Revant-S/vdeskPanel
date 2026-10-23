@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/index"
+	"vault/internal/devicetest"
+	"vault/internal/index"
 )
 
 func trashIDs(t *testing.T, d *devicetest.Device) map[string]string {

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 var (

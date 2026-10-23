@@ -3,7 +3,7 @@ package crypto
 import (
 	"io"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // KeyringNames encrypts and decrypts names under the keyring's read lock, so a lock cannot

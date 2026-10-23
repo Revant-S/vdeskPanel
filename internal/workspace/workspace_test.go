@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/plaintextcheck"
+	"vault/internal/fusefs"
+	"vault/internal/model"
+	"vault/internal/plaintextcheck"
 )
 
 func TestCreateWriteAndReopenAfterRestart(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cosmoboy/vault/internal/crypto"
+	"vault/internal/crypto"
 )
 
 const (

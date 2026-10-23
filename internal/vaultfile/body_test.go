@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
-	"github.com/cosmoboy/vault/internal/crypto"
 	"io"
 	mathrand "math/rand/v2"
 	"testing"
+	"vault/internal/crypto"
 )
 
 var edgeSizes = []int{0, 1, 65535, 65536, 65537, 3 * 65536, 3*65536 + 17}

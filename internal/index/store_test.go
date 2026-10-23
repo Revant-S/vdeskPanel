@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/plaintextcheck"
 	"github.com/google/go-cmp/cmp"
+	"vault/internal/crypto"
+	"vault/internal/model"
+	"vault/internal/plaintextcheck"
 )
 
 func testSealer(t *testing.T) *crypto.IndexSealer {

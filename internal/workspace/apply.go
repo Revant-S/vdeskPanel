@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/tree"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
+	"vault/internal/tree"
 )
 
 // remoteApply applies one commit from another device. Index changes share one transaction;

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/syncer"
+	"vault/internal/drive"
+	"vault/internal/model"
+	"vault/internal/syncer"
 )
 
 // Changes serves the incoming poller.

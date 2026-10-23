@@ -1,9 +1,9 @@
 package workspace
 
 import (
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 func (a *remoteApply) create(op journal.Op) error {

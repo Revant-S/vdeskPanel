@@ -10,7 +10,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/drive/drivefake"
 )
 
 func matchKind(kind drivefake.RequestKind) func(*http.Request) bool {

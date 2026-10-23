@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/model"
 	"github.com/klauspost/compress/zstd"
+	"vault/internal/crypto"
+	"vault/internal/model"
 )
 
 const maxDecodedSize = 64 << 20

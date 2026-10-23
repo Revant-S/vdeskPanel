@@ -3,7 +3,7 @@ package journal
 import (
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 type OpKind string

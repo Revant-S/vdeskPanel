@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/cache"
+	"vault/internal/drive"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // Bodies serves the cache, mapping an object to the Drive file of its current version.

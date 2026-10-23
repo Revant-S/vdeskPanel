@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 var ErrPlacementChanged = fmt.Errorf("tree: Update cannot change parent, name or kind; use Move: %w", fs.ErrInvalid)

@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
+	"vault/internal/drive/drivefake"
 )
 
 func main() {

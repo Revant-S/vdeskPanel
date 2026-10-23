@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // freeName settles two objects that ended up with one name in one folder: the one placed

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/secret"
+	"vault/internal/crypto"
+	"vault/internal/secret"
 )
 
 const FormatVersion = 1

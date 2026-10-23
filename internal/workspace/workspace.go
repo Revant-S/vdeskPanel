@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/tree"
+	"vault/internal/cache"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/tree"
 )
 
 type NameCipher interface {

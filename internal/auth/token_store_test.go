@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/plaintextcheck"
 	"golang.org/x/oauth2"
+	"vault/internal/crypto"
+	"vault/internal/plaintextcheck"
 )
 
 var testKDFParams = crypto.KDFParams{Time: 1, MemoryKiB: 8 * 1024, Threads: 1}

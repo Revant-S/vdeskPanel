@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // PathOf returns the slash path from the root, "/" for the root itself.

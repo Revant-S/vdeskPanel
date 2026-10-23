@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // slowRemote holds each fetch briefly so parallel requests overlap, and can cancel the caller

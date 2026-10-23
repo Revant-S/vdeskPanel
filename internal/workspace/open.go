@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/fusefs"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/cache"
+	"vault/internal/fusefs"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 type handle struct {

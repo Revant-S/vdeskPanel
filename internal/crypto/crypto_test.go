@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 var testParams = KDFParams{Time: 1, MemoryKiB: 8 * 1024, Threads: 1}
