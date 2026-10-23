@@ -69,12 +69,7 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if err := os.WriteFile(notes, []byte("written through the mount"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.SyncNow(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if status, _ := a.Status(ctx); status.NotBackedUpFiles != 0 || status.LastBackedUp.IsZero() {
-		t.Fatalf("status after sync = %+v", status)
-	}
+	syncUntilBackedUp(t, a)
 	session, _ := a.currentSession()
 	collector := orphans.New(orphans.Deps{Remote: session.client, References: session.referencedDriveIDs, Now: time.Now},
 		orphans.Config{VaultID: session.vaultID, TreeFolderID: session.folders.Tree, TrashFolderID: session.folders.Trash})
@@ -123,4 +118,21 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 			t.Fatalf("A's device list = %+v", devices)
 		}
 	}
+}
+
+// syncUntilBackedUp retries because FUSE delivers RELEASE after close returns, and a file is
+// queued for upload only once released.
+func syncUntilBackedUp(t *testing.T, d *Daemon) {
+	t.Helper()
+	ctx := context.Background()
+	var status api.Status
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if err := d.SyncNow(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if status, _ = d.Status(ctx); status.NotBackedUpFiles == 0 && !status.LastBackedUp.IsZero() {
+			return
+		}
+	}
+	t.Fatalf("status after sync = %+v", status)
 }
