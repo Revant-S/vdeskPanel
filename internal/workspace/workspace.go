@@ -108,6 +108,9 @@ func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
 	}
 	ws := &Workspace{Deps: deps, config: config, tree: built, inodes: newInodeMap(), handles: newHandleRegistry(),
 		pendingInvalidations: make(chan entryInvalidation, invalidationQueueSize)}
+	if err := ws.finishRenamesOver(ctx); err != nil {
+		return nil, err
+	}
 	if err := ws.recoverInterruptedWrites(ctx); err != nil {
 		return nil, err
 	}

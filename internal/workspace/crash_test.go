@@ -128,6 +128,32 @@ func (h *testHome) expectNoBodyMoves(t *testing.T) {
 	}
 }
 
+func TestCrashMidRenameOverStillUnlocksAndKeepsTheSave(t *testing.T) {
+	home := newTestHome(t)
+	ctx := context.Background()
+	target := home.writeFile(t, "/", "report.odt", "v1")
+	home.markSynced(t, target, "drive-v1")
+	source := home.writeFile(t, "/", ".~lock-tmp", "v2 saved atomically")
+	sourceEntry, _ := home.ws.tree.Get(source)
+	targetEntry, _ := home.ws.tree.Get(target)
+
+	// renameFileOver's body move, then the process dies.
+	if err := home.ws.moveRenamedBody(ctx, sourceEntry, targetEntry); err != nil {
+		t.Fatal(err)
+	}
+	home.restart(t)
+
+	if got := home.readFile(t, "/report.odt"); got != "v2 saved atomically" {
+		t.Fatalf("after the crash report.odt reads %q", got)
+	}
+	if _, ok := home.ws.tree.Resolve("/.~lock-tmp"); ok {
+		t.Fatal("the renamed temp file is still in the tree")
+	}
+	if object := home.object(t, target); object.State != model.Dirty {
+		t.Fatalf("report.odt is %v, so its new content would never upload", object.State)
+	}
+}
+
 func TestSupersededBodyMoveIsNotLeftRecorded(t *testing.T) {
 	home := newTestHome(t)
 	id := home.writeFile(t, "/", "doc.txt", "base")
