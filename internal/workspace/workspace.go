@@ -96,6 +96,9 @@ func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
 	if _, err := repairer.repairOrphans(ctx); err != nil {
 		return nil, fmt.Errorf("repair orphaned objects: %w", err)
 	}
+	if err := repairer.finishAdoptions(ctx); err != nil {
+		return nil, err
+	}
 	if err := repairer.finishBodyMoves(ctx); err != nil {
 		return nil, err
 	}

@@ -145,3 +145,36 @@ func TestSupersededBodyMoveIsNotLeftRecorded(t *testing.T) {
 	}
 	home.expectNoBodyMoves(t)
 }
+
+func TestCrashMidAdoptionStillUnlocksAndKeepsTheSave(t *testing.T) {
+	home := newTestHome(t)
+	ctx := context.Background()
+	keep := home.writeFile(t, "/", "notes.md", "v1")
+	home.markSynced(t, keep, "drive-v1")
+	if err := home.ws.Rename(ctx, rootIno, "notes.md", rootIno, "notes.md~", false); err != nil {
+		t.Fatal(err)
+	}
+	absorbed := home.writeFile(t, "/", "notes.md", "v2 saved by vim")
+	if err := home.ws.Unlink(ctx, rootIno, "notes.md~", fusefs.Caller{PID: 1}); err != nil {
+		t.Fatal(err)
+	}
+
+	// AdoptReplacement's body move, then the process dies.
+	if err := home.ws.moveAdoptedBody(ctx, keep, absorbed); err != nil {
+		t.Fatal(err)
+	}
+	home.restart(t)
+
+	if got := home.readFile(t, "/notes.md"); got != "v2 saved by vim" {
+		t.Fatalf("after the crash notes.md reads %q", got)
+	}
+	if err := home.ws.AdoptReplacement(ctx, keep, absorbed); err != nil {
+		t.Fatalf("adoption after the crash: %v", err)
+	}
+	if got := home.readFile(t, "/notes.md"); got != "v2 saved by vim" {
+		t.Fatalf("after adoption notes.md reads %q", got)
+	}
+	if object := home.object(t, keep); object.State != model.Dirty || !isLive(object) {
+		t.Fatalf("kept object = %+v", object)
+	}
+}

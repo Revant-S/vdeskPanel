@@ -275,3 +275,10 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Cause.** `supersedeLocal` moves the body to its holder as an after-transaction effect (the cache writes the index itself, so it can't run inside the transaction). Nothing recorded the pending move, and replaying the commit is a no-op once its index changes are in.
 - **Fix.** The move is recorded in kv (`workspace/body-move/<holder>` → source oid) in the apply transaction and cleared once done. On open, `finishBodyMoves` completes any recorded move whose holder has no body yet. A failed move keeps its record, so the next open retries it.
 - **Tests.** `TestCrashBeforeSupersededBodyMovesKeepsTheLocalEdit` commits the apply transaction, skips the effects and restarts; the holder must hold the edit. It fails without the fix with "no local body". `TestSupersededBodyMoveIsNotLeftRecorded` checks the normal path leaves no record.
+
+### Fix: a crash mid-adoption left a device that couldn't unlock
+
+- **Symptom.** Killed during a vim-style save's adoption, after the new body moved to the original object but before the index recorded it, the next unlock failed with "open body …: no local body". The replacement was a live Dirty row whose body had moved away, and open-time crash recovery stats every Dirty body. Had open got past that, the next batch's `AdoptReplacement` would have failed on the same missing file every time, stalling all uploads.
+- **Cause.** `AdoptReplacement` renames the body and then writes the index in a separate step, with nothing recording the half-done state.
+- **Fix.** The adoption is recorded in kv (`workspace/adoption/<absorbed>` → kept oid) before the body moves, and `persistAdoption` clears it in its transaction, together with any stale bitmap of the kept object. On open, `finishAdoptions` persists a recorded adoption whose body already moved, and drops the record if the body never moved (the next batch adopts again).
+- **Test.** `TestCrashMidAdoptionStillUnlocksAndKeepsTheSave` moves the body, restarts, reads the saved bytes and adopts again. It fails without the fix with "no local body".
