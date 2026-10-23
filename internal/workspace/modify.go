@@ -112,6 +112,13 @@ func (w *Workspace) settleTrashedDirty(ctx context.Context, object index.Object)
 }
 
 func (w *Workspace) recoverDirtyFile(ctx context.Context, object index.Object) error {
+	repaired, err := w.Cache.RecoverInterruptedRewrite(object.ID)
+	if err != nil {
+		return err
+	}
+	if repaired {
+		w.Logger.Warn("repaired a body whose rewrite a crash cut short", "oid", object.ID)
+	}
 	size, err := w.bodySize(ctx, object)
 	if err != nil {
 		return err

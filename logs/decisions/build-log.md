@@ -289,3 +289,49 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Fix.** What arrived is stored even when another file fails or the deadline hits. The store uses a context the deadline doesn't cancel, since it's a short local write. This is safe: storing is idempotent by commit ID, and nothing is applied until a poll completes, so apply order and the page-token rule (R14) are unchanged. Only cleanly opened files are kept: a file that fails to decrypt contributes nothing. Ingested pack Drive IDs are remembered in kv (`journal.ingested_packs`); packs are immutable, so they're fetched once.
 - **Tests.** One file fails, the other two are stored and not downloaded again on retry. Three ingests of a packed folder download the pack once. Both fail on the old code.
 - **Session crash.** The first `make check` for this fix was killed (exit 137) along with the whole session, most likely out of memory: three `go test -race` suites were running at once (this one and two agents') on a 15 GB machine. Test runs are now kept to one at a time.
+
+## Crash-recovery review
+
+### Fix: a crash during a conflict apply could lose the losing local edit
+
+- **Symptom.** Killed right after an incoming commit's apply transaction, a device that had an unsynced edit losing to a newer remote edit came back with a holder object queued for upload into trash but no body. The edit itself was still under the original file's cache path, where the file was now cloud-only with the remote BodyID. The next open or restore download reset that file to a sparse mirror and the edit was gone. The holder's upload could never succeed either, so the backlog stayed at one file and restore stayed blocked.
+- **Cause.** `supersedeLocal` moves the body to its holder as an after-transaction effect (the cache writes the index itself, so it can't run inside the transaction). Nothing recorded the pending move, and replaying the commit is a no-op once its index changes are in.
+- **Fix.** The move is recorded in kv (`workspace/body-move/<holder>` → source oid) in the apply transaction and cleared once done. On open, `finishBodyMoves` completes any recorded move whose holder has no body yet. A failed move keeps its record, so the next open retries it.
+- **Tests.** `TestCrashBeforeSupersededBodyMovesKeepsTheLocalEdit` commits the apply transaction, skips the effects and restarts; the holder must hold the edit. It fails without the fix with "no local body". `TestSupersededBodyMoveIsNotLeftRecorded` checks the normal path leaves no record.
+
+### Fix: a crash mid-adoption left a device that couldn't unlock
+
+- **Symptom.** Killed during a vim-style save's adoption, after the new body moved to the original object but before the index recorded it, the next unlock failed with "open body …: no local body". The replacement was a live Dirty row whose body had moved away, and open-time crash recovery stats every Dirty body. Had open got past that, the next batch's `AdoptReplacement` would have failed on the same missing file every time, stalling all uploads.
+- **Cause.** `AdoptReplacement` renames the body and then writes the index in a separate step, with nothing recording the half-done state.
+- **Fix.** The adoption is recorded in kv (`workspace/adoption/<absorbed>` → kept oid) before the body moves, and `persistAdoption` clears it in its transaction, together with any stale bitmap of the kept object. On open, `finishAdoptions` persists a recorded adoption whose body already moved, and drops the record if the body never moved (the next batch adopts again).
+- **Test.** `TestCrashMidAdoptionStillUnlocksAndKeepsTheSave` moves the body, restarts, reads the saved bytes and adopts again. It fails without the fix with "no local body".
+
+### Fix: a crash mid-append or mid-truncate made the file unreadable and dropped the edit
+
+- **Symptom.** Killed while a body grew past a segment boundary, or while `O_TRUNC` emptied it, the file read as EIO after restart. The next snapshot hit `ErrCorruptBody`, marked the file Corrupt and skipped the upload, so every change since the last sync was dropped (for a never-synced file, the whole file).
+- **Cause.** A body's size comes from the file length and only the last segment is sealed as final. Growing reseals the old last segment as non-final before the new segments exist, so a kill in between leaves a full last segment sealed non-final. Truncating writes the new final segment first and shortens the file after, so a truncate to zero killed in between leaves an empty final segment 0 in front of the old data.
+- **Fix.** `vaultfile.Body.RecoverInterruptedRewrite`, run by open-time recovery on every Dirty body (`Cache.RecoverInterruptedRewrite`): segment 0 that opens as an empty final segment finishes the truncate; a full last segment that opens only as non-final is resealed as final, keeping the bytes that reached disk. It costs one 16-byte decrypt per Dirty file, plus a segment decrypt only when the size is an exact multiple of 64 KiB.
+- **Tests.** `TestCrashMidAppendKeepsTheFileReadable` and `TestCrashMidTruncateToZeroKeepsTheFileReadable` kill a rewrite after one segment write and restart; the file must read as old or partly-new bytes and snapshot cleanly. Both fail without the fix with EIO.
+- **Not covered.** A kill mid-truncate to a non-zero size inside an earlier segment leaves that segment unreadable; the old last segment still checks out, so it's only found at snapshot time. Fixing that needs an ordering that keeps every intermediate state valid, or a record of the target size.
+
+### Fix: a crash mid atomic save (rename over a file) left a device that couldn't unlock
+
+- **Symptom.** Killed during a rename over an existing file (how gedit, LibreOffice and most editors save), after the temp file's body moved onto the target but before the index recorded it, the next unlock failed with "no local body". If it had got further, the target would have held the new bytes while its row still said synced, so the save would never have uploaded, and a cloud-only target would have reset the new bytes on its next open.
+- **Cause.** The same split as adoption: `renameFileOver` renames the body, then writes the index in a separate step.
+- **Fix.** `moveRenamedBody` records the rename in kv (`workspace/rename-over/<source>` → target) before the move, and `persistRenameOver` clears it. On open, after the tree is built, `finishRenamesOver` completes a recorded rename whose source body is gone (`finishRenameOver`, the second half of `renameFileOver`) and drops the record otherwise.
+- **Test.** `TestCrashMidRenameOverStillUnlocksAndKeepsTheSave`: body moved, restart, the target reads the new bytes, the temp name is gone and the target is Dirty. It fails without the fix with "no local body".
+
+## FUSE data integrity (taken over from the stopped FUSE agent)
+
+### Fix: renaming a still-open temp file over a target gave the target two bodies
+
+- **Symptom.** A program that renames its temp file over the target before closing it (write, rename, keep writing, close) and anyone opening the target meanwhile: the reader read 64 KiB, then EIO. A second writer through the target would have rewritten segments from a stale size and corrupted the body.
+- **Cause.** The rename moves the body file and rebinds the open handles to the target, but the cache still registers the shared body object under the source's ID. Opening the target found nothing under its own ID and opened a second object on the same file, with its own idea of the size and last segment.
+- **Fix.** `openCacheEntry` first shares the body of an attached handle already open on the object (`Cache.Share`), unless that entry is closed or its body was replaced. Normally that's the object the cache would have returned anyway.
+- **Test.** `TestRenameOverWhileTempStillOpenKeepsOneBody`: write, rename over, open a reader, keep writing; the reader sees every byte, and so does a read after close. It fails without the fix with EIO at 65,536 bytes.
+
+### Noted, not fixed
+
+- **Tree size races (`noteLocalWrite`).** It reads the tree entry, sets the size and writes it back without a lock across the two steps, and ignores `tree.Update`'s error. Two writes finishing out of order can store the smaller size, and a rename landing between the read and the write makes `Update` refuse (`ErrPlacementChanged`), so that size update is lost. `recordModify` then copies the stale size to the index, which hides the tail from readers, and an `O_APPEND` write would land on top of it. The kernel serializes write, truncate and rename on one inode, so through the mount this needs mmap writeback or a remote rename applied mid-write. `TestConcurrentWritesAndRenamesKeepTheSize` (8 handles plus a rename loop, without the kernel) didn't hit it, so it's unproven. The fix would be a tree method that updates only size, time and state under the tree lock, taking the size from the shared cache object.
+- **Supersede window without a crash.** Between an apply transaction committing and its body move, a read of the losing file opens it as cloud-only with the remote BodyID and resets the local edit. The window is microseconds. Fixing it means moving the body before the commit, which needs a rollback path.
+- **Packing.** A crash between writing a pack and deleting the singles makes the next `PackIfDue` write a second pack with the same commits. Readers dedupe, so nothing is lost. `PackIfDue` isn't called anywhere in production yet, so log folders only grow.

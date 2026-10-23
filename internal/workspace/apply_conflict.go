@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -99,14 +100,18 @@ func (a *remoteApply) deviceNameOf(device model.DeviceID) string {
 // supersedeLocal keeps a local version that lost a conflict: its body moves to a hidden
 // holder object that the next batch uploads straight into the trash. The body moves after
 // the transaction, since the cache writes to the index itself; effects run in order, so it
-// moves before the losing object's body is freed.
+// moves before the losing object's body is freed. The move is recorded in the transaction,
+// so a crash before it happens is finished at the next open.
 func (a *remoteApply) supersedeLocal(object index.Object, reason model.DeleteReason) error {
 	holder, err := a.newHolder(object)
 	if err != nil {
 		return err
 	}
+	if err := a.tx.SetKV(bodyMoveKeyPrefix+string(holder.ID), []byte(object.ID)); err != nil {
+		return err
+	}
 	a.after = append(a.after, func() {
-		if err := a.ws.Cache.Replace(a.ctx, holder.ID, a.ws.Cache.BodyPath(object.ID)); err != nil {
+		if err := a.ws.moveBody(a.ctx, object.ID, holder.ID); err != nil {
 			a.unmoved[object.ID] = true
 			a.ws.Logger.Error("keep superseded body", "oid", object.ID, "holder", holder.ID, "err", err)
 		}
@@ -154,4 +159,45 @@ func (a *remoteApply) queueSupersede(holder, object index.Object, reason model.D
 	objectPath, _ := a.ws.tree.PathOf(object.ID)
 	op := model.LocalOp{Kind: model.LocalSupersede, ObjectID: holder.ID, Path: objectPath, Reason: reason}
 	return appendOp(a.tx, op, holder.PlacementVer, a.ws.Now())
+}
+
+const bodyMoveKeyPrefix = "workspace/body-move/"
+
+// moveBody gives a superseded body to its holder and clears the recorded move.
+func (w *Workspace) moveBody(ctx context.Context, from, to model.ObjectID) error {
+	if err := w.Cache.Replace(ctx, to, w.Cache.BodyPath(from)); err != nil {
+		return err
+	}
+	return w.update(ctx, func(tx *index.Tx) error { return tx.DeleteKV(bodyMoveKeyPrefix + string(to)) })
+}
+
+// finishBodyMoves completes superseded-body moves a crash interrupted. Until a move is done
+// the losing edit still sits under the replaced file, where opening that file would
+// overwrite it with the remote version.
+func (w *Workspace) finishBodyMoves(ctx context.Context) error {
+	var moves map[string][]byte
+	err := w.Index.View(ctx, func(tx *index.Tx) error {
+		var err error
+		moves, err = tx.KVWithPrefix(bodyMoveKeyPrefix)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	for key, from := range moves {
+		holder, source := model.ObjectID(strings.TrimPrefix(key, bodyMoveKeyPrefix)), model.ObjectID(from)
+		switch {
+		case !w.Cache.HasBody(holder) && w.Cache.HasBody(source):
+			err = w.moveBody(ctx, source, holder)
+		case !w.Cache.HasBody(holder):
+			w.Logger.Error("superseded body is gone", "oid", source, "holder", holder)
+			fallthrough
+		default:
+			err = w.update(ctx, func(tx *index.Tx) error { return tx.DeleteKV(key) })
+		}
+		if err != nil {
+			return fmt.Errorf("finish superseded body move: %w", err)
+		}
+	}
+	return nil
 }

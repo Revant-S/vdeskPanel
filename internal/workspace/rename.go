@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"strings"
 	"syscall"
 
 	"vault/internal/crypto"
@@ -122,9 +123,13 @@ func (w *Workspace) renameFileOver(ctx context.Context, source, target model.Ent
 		return err
 	}
 	w.handles.detach(target.ID)
-	if err := w.Cache.Replace(ctx, target.ID, w.Cache.BodyPath(source.ID)); err != nil {
+	if err := w.moveRenamedBody(ctx, source, target); err != nil {
 		return fmt.Errorf("replace body: %w", err)
 	}
+	return w.finishRenameOver(ctx, source, target)
+}
+
+func (w *Workspace) finishRenameOver(ctx context.Context, source, target model.Entry) error {
 	path, err := w.tree.PathOf(target.ID)
 	if err != nil {
 		return err
@@ -141,6 +146,45 @@ func (w *Workspace) renameFileOver(ctx context.Context, source, target model.Ent
 	}
 	w.inodes.rebind(source.ID, target.ID)
 	w.handles.rebind(source.ID, target.ID)
+	return nil
+}
+
+const renameOverKeyPrefix = "workspace/rename-over/"
+
+// moveRenamedBody records the rename before moving the body, so a crash before
+// persistRenameOver is finished at the next open.
+func (w *Workspace) moveRenamedBody(ctx context.Context, source, target model.Entry) error {
+	if err := w.update(ctx, func(tx *index.Tx) error { return tx.SetKV(renameOverKeyPrefix+string(source.ID), []byte(target.ID)) }); err != nil {
+		return err
+	}
+	return w.Cache.Replace(ctx, target.ID, w.Cache.BodyPath(source.ID))
+}
+
+// finishRenamesOver completes renames over a file that a crash cut off after the body moved.
+// Left undone, the source would be a live file with no body, which fails the next open, and
+// the target would hold new bytes the index doesn't know to upload.
+func (w *Workspace) finishRenamesOver(ctx context.Context) error {
+	var renames map[string][]byte
+	err := w.Index.View(ctx, func(tx *index.Tx) error {
+		var err error
+		renames, err = tx.KVWithPrefix(renameOverKeyPrefix)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	for key, targetID := range renames {
+		source, sourceLive := w.tree.Get(model.ObjectID(strings.TrimPrefix(key, renameOverKeyPrefix)))
+		target, targetLive := w.tree.Get(model.ObjectID(targetID))
+		if sourceLive && targetLive && !w.Cache.HasBody(source.ID) {
+			err = w.finishRenameOver(ctx, source, target)
+		} else {
+			err = w.update(ctx, func(tx *index.Tx) error { return tx.DeleteKV(key) })
+		}
+		if err != nil {
+			return fmt.Errorf("finish rename over a file: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -165,6 +209,9 @@ func (w *Workspace) persistRenameOver(ctx context.Context, source, target model.
 			return err
 		}
 		if err := tx.DeleteSegmentBitmap(target.ID); err != nil {
+			return err
+		}
+		if err := tx.DeleteKV(renameOverKeyPrefix + string(source.ID)); err != nil {
 			return err
 		}
 		if target.LocalOnly {

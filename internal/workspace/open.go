@@ -63,6 +63,11 @@ func (w *Workspace) Open(ctx context.Context, ino model.Ino, writable, truncate 
 }
 
 func (w *Workspace) openCacheEntry(ctx context.Context, object index.Object, writable bool) (*cache.Entry, error) {
+	if open := w.handles.liveEntry(object.ID); open != nil {
+		if entry, ok := w.Cache.Share(open, writable); ok {
+			return entry, nil
+		}
+	}
 	var bodyID vaultfile.BodyID
 	copy(bodyID[:], object.BodyID)
 	open := w.Cache.Open

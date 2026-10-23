@@ -29,6 +29,26 @@ func (o *object) newEntry(writable bool) *Entry {
 	return &Entry{object: o, writable: writable}
 }
 
+// Share opens another entry on e's body. A rename over a file carries the source's open
+// handles to the target, whose body is then registered under the source's ID; opening the
+// target through them keeps one shared body instead of a second object on the same file.
+// It reports false when e is closed or its body was replaced.
+func (c *Cache) Share(e *Entry, writable bool) (*Entry, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e.checkOpen() != nil {
+		return nil, false
+	}
+	o := e.object
+	o.mu.Lock()
+	detached := o.detached
+	o.mu.Unlock()
+	if detached {
+		return nil, false
+	}
+	return o.newEntry(writable), true
+}
+
 func (e *Entry) checkOpen() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
