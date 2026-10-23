@@ -114,3 +114,28 @@ func TestCrashMidTruncateToZeroKeepsTheFileReadable(t *testing.T) {
 		t.Fatalf("snapshot for upload: %v", err)
 	}
 }
+
+func TestCrashMidShrinkKeepsTheFileReadable(t *testing.T) {
+	for _, writes := range []int{0, 1} {
+		home := newTestHome(t)
+		old := make([]byte, 200_000)
+		rand.Read(old)
+		id := home.writeFile(t, "/", "data.bin", string(old))
+		const target = 70_000
+		if err := home.ws.recordShrink(context.Background(), id, target); err != nil {
+			t.Fatal(err)
+		}
+		home.rewriteThenCrash(t, id, int64(len(old)), writes, func(body *vaultfile.Body) error { return body.Truncate(target) })
+
+		got, err := home.readAll(t, "/data.bin")
+		if err != nil {
+			t.Fatalf("crash after %d writes: data.bin fails to read: %v", writes, err)
+		}
+		if !bytes.Equal(got, old) && !bytes.Equal(got, old[:target]) {
+			t.Fatalf("crash after %d writes: data.bin holds %d bytes, neither the old content nor the shrunk one", writes, len(got))
+		}
+		if _, err := home.cache.Snapshot(context.Background(), "batch", id); err != nil {
+			t.Fatalf("crash after %d writes: snapshot for upload: %v", writes, err)
+		}
+	}
+}

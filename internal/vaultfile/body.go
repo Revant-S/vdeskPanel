@@ -238,6 +238,29 @@ func (b *Body) RecoverInterruptedRewrite() (bool, error) {
 	return true, b.writeSegment(last, plaintext, true)
 }
 
+// FinishInterruptedShrink completes a truncate to target that a crash cut off between
+// writing the new final segment and shortening the file. If that segment was never written,
+// the old body is still whole and is left as it is.
+func (b *Body) FinishInterruptedShrink(target int64) (bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.aead == nil {
+		return false, ErrClosed
+	}
+	if target <= 0 || target >= b.size {
+		return false, nil
+	}
+	last := SegmentCount(target) - 1
+	if _, err := b.openSegment(last, segmentPlaintextLength(last, target), true); err != nil {
+		return false, nil
+	}
+	if err := b.storage.Truncate(CiphertextSize(target)); err != nil {
+		return false, fmt.Errorf("finish shrink: %w", err)
+	}
+	b.size = target
+	return true, nil
+}
+
 func (b *Body) readSegment(index int64) ([]byte, error) {
 	return b.openSegment(index, segmentPlaintextLength(index, b.size), index == SegmentCount(b.size)-1)
 }

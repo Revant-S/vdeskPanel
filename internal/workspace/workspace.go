@@ -111,6 +111,9 @@ func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
 	if err := ws.finishRenamesOver(ctx); err != nil {
 		return nil, err
 	}
+	if err := ws.finishShrinks(ctx); err != nil {
+		return nil, err
+	}
 	if err := ws.recoverInterruptedWrites(ctx); err != nil {
 		return nil, err
 	}
