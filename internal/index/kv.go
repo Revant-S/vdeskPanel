@@ -29,6 +29,25 @@ func (t *Tx) SetKV(key string, value []byte) error {
 	return nil
 }
 
+// KVWithPrefix returns every entry whose key starts with prefix.
+func (t *Tx) KVWithPrefix(prefix string) (map[string][]byte, error) {
+	rows, err := t.query(`SELECT key, value FROM kv WHERE substr(key, 1, ?) = ?`, len(prefix), prefix)
+	if err != nil {
+		return nil, fmt.Errorf("read kv %s*: %w", prefix, err)
+	}
+	defer rows.Close()
+	entries := map[string][]byte{}
+	for rows.Next() {
+		var key string
+		var value []byte
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		entries[key] = value
+	}
+	return entries, rows.Err()
+}
+
 func (t *Tx) DeleteKV(key string) error {
 	_, err := t.exec(`DELETE FROM kv WHERE key = ?`, key)
 	return err

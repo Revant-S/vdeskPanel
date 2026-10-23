@@ -266,3 +266,12 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 
 - **Trash expiry and clock skew.** A remote trash entry's deleted-on date comes from the deleting device's wall clock. A device whose clock runs months behind makes others expire its trash items early. The HLC caps clocks ahead (now + 1 h) but not behind. A possible fix is to expire on the later of the commit time and the time this device applied it.
 - **Snapshot swap window.** `settleLocalBody` checks for open writers, then swaps the uploaded snapshot into the cache. A writer opening in the microseconds between the two could write to the replaced body. It would need a cache-level check-and-swap.
+
+## Crash-recovery review
+
+### Fix: a crash during a conflict apply could lose the losing local edit
+
+- **Symptom.** Killed right after an incoming commit's apply transaction, a device that had an unsynced edit losing to a newer remote edit came back with a holder object queued for upload into trash but no body. The edit itself was still under the original file's cache path, where the file was now cloud-only with the remote BodyID. The next open or restore download reset that file to a sparse mirror and the edit was gone. The holder's upload could never succeed either, so the backlog stayed at one file and restore stayed blocked.
+- **Cause.** `supersedeLocal` moves the body to its holder as an after-transaction effect (the cache writes the index itself, so it can't run inside the transaction). Nothing recorded the pending move, and replaying the commit is a no-op once its index changes are in.
+- **Fix.** The move is recorded in kv (`workspace/body-move/<holder>` → source oid) in the apply transaction and cleared once done. On open, `finishBodyMoves` completes any recorded move whose holder has no body yet. A failed move keeps its record, so the next open retries it.
+- **Tests.** `TestCrashBeforeSupersededBodyMovesKeepsTheLocalEdit` commits the apply transaction, skips the effects and restarts; the holder must hold the edit. It fails without the fix with "no local body". `TestSupersededBodyMoveIsNotLeftRecorded` checks the normal path leaves no record.
