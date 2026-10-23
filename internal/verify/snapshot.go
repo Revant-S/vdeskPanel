@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // snapshot is the part of the index a verify compares against Drive.

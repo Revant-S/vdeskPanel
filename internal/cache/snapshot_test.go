@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/plaintextcheck"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/model"
+	"vault/internal/plaintextcheck"
+	"vault/internal/vaultfile"
 )
 
 const otherID model.ObjectID = "fedcba9876543210fedcba9876543210"

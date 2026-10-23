@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/verify"
+	"vault/internal/drive"
+	"vault/internal/model"
+	"vault/internal/verify"
 )
 
 // Verify serves the backup health check.

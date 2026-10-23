@@ -13,17 +13,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/remote"
-	"github.com/cosmoboy/vault/internal/syncer"
-	"github.com/cosmoboy/vault/internal/vaultlayout"
-	"github.com/cosmoboy/vault/internal/workspace"
+	"vault/internal/cache"
+	"vault/internal/crypto"
+	"vault/internal/drive"
+	"vault/internal/drive/drivefake"
+	"vault/internal/index"
+	"vault/internal/journal"
+	"vault/internal/model"
+	"vault/internal/remote"
+	"vault/internal/syncer"
+	"vault/internal/vaultlayout"
+	"vault/internal/workspace"
 )
 
 type Network struct {

@@ -5,10 +5,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/cosmoboy/vault/internal/devices"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/devices"
+	"vault/internal/drive"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 // Log serves the journal.

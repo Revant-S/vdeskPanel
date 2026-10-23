@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/crypto"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 var errGone = errors.New("fake: not found")

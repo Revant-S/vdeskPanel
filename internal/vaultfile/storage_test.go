@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/secret"
+	"vault/internal/crypto"
+	"vault/internal/secret"
 )
 
 type memoryStorage struct {

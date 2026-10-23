@@ -3,7 +3,7 @@ package workspace
 import (
 	"sync"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 // handleRegistry tracks open handles per object, so the workspace knows when a file has a

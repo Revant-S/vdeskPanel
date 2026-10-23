@@ -8,8 +8,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/crypto/hkdf"
+	"vault/internal/secret"
 )
 
 var (

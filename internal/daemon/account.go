@@ -9,14 +9,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/auth"
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/drive"
-	"github.com/cosmoboy/vault/internal/restore"
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/oauth2"
+	"vault/internal/api"
+	"vault/internal/auth"
+	"vault/internal/config"
+	"vault/internal/crypto"
+	"vault/internal/drive"
+	"vault/internal/restore"
+	"vault/internal/secret"
 )
 
 const (

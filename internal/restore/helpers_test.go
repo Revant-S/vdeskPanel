@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/restore"
+	"vault/internal/devicetest"
+	"vault/internal/drive/drivefake"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/restore"
 )
 
 const largeFileSize = 20<<20 + 12345

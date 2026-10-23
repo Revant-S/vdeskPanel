@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/daemon"
+	"vault/internal/config"
+	"vault/internal/daemon"
 )
 
 // With the devdrive tag, vaultd can talk to tools/drivefake instead of Google, for

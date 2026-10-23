@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cosmoboy/vault/internal/procfilter"
+	"vault/internal/procfilter"
 )
 
 // Duration marshals with a value receiver so it encodes as text inside a Config value;

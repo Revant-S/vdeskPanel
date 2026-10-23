@@ -5,8 +5,8 @@ package main
 import (
 	"log/slog"
 
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/daemon"
+	"vault/internal/config"
+	"vault/internal/daemon"
 )
 
 type devDriveOptions struct{}

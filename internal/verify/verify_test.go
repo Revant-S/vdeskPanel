@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/devicetest"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/remote"
-	"github.com/cosmoboy/vault/internal/vaultfile"
-	"github.com/cosmoboy/vault/internal/verify"
+	"vault/internal/crypto"
+	"vault/internal/devicetest"
+	"vault/internal/index"
+	"vault/internal/remote"
+	"vault/internal/vaultfile"
+	"vault/internal/verify"
 )
 
 type fixture struct {

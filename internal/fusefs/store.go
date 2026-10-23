@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 type Attr struct {

@@ -7,8 +7,8 @@ import (
 	"iter"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
 	"golang.org/x/sync/errgroup"
+	"vault/internal/model"
 )
 
 // EncryptedEntry is one index row before its name is decrypted.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/vaultfile"
 )
 
 type segmentSpan struct {

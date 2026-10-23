@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/secret"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+	"vault/internal/api"
+	"vault/internal/secret"
 )
 
 func formatStatus(status api.Status, now time.Time) string {

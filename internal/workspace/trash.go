@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 var ErrRestoreWhileLive = errors.New("workspace: the original is in the vault again; move it aside to restore this version")

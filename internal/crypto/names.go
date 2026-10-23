@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 const MaxNameBytes = 255

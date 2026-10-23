@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // BatchOp is one net op with everything its execution decided so far. It is persisted after

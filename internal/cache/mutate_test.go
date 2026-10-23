@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 func TestWriteOnIncompleteBodyNeedsEnsureComplete(t *testing.T) {

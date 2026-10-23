@@ -4,10 +4,10 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/model"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"golang.org/x/sys/unix"
+	"vault/internal/model"
 )
 
 type node struct {

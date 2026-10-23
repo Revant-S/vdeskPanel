@@ -1,6 +1,6 @@
 package fusefs
 
-import "github.com/cosmoboy/vault/internal/model"
+import "vault/internal/model"
 
 type MemoryStore = memoryStore
 

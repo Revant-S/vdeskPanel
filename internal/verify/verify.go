@@ -12,9 +12,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/crypto"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // ErrRemoteNotFound is what Remote returns, wrapped, for a Drive file that does not exist.

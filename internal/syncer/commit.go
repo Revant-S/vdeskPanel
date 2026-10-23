@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/cosmoboy/vault/internal/journal"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/journal"
+	"vault/internal/model"
 )
 
 // commitBatch records the batch's net effect as one log commit. It runs only after every body

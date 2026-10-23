@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/cosmoboy/vault/internal/index"
+	"vault/internal/index"
 )
 
 // ApplyPending applies stored remote commits in clock order. A commit waits while any of its

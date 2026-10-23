@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 // SnapshotFile is an upload-ready copy of a body under a fresh file key and BodyID.

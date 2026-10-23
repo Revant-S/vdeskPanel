@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 // Progress counts the files of the current or last round. In OnDemand mode it covers only

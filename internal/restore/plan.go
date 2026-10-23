@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/index"
+	"vault/internal/model"
+	"vault/internal/vaultfile"
 )
 
 type roundPlan struct {

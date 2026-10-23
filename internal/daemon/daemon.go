@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/api"
-	"github.com/cosmoboy/vault/internal/config"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/secret"
 	"golang.org/x/oauth2"
+	"vault/internal/api"
+	"vault/internal/config"
+	"vault/internal/model"
+	"vault/internal/secret"
 )
 
 // Notifier shows desktop notifications. It may be nil when no session bus is available.

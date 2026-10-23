@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 type PendingOp struct {

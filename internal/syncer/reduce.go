@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 type NetKind string

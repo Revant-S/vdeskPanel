@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/model"
-	"github.com/cosmoboy/vault/internal/restore"
-	"github.com/cosmoboy/vault/internal/vaultfile"
+	"vault/internal/drive/drivefake"
+	"vault/internal/model"
+	"vault/internal/restore"
+	"vault/internal/vaultfile"
 )
 
 func TestRestoreEverythingBringsBackEveryBody(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/auth"
-	"github.com/cosmoboy/vault/internal/drive"
 	"golang.org/x/oauth2"
+	"vault/internal/auth"
+	"vault/internal/drive"
 )
 
 type randomSource struct{}

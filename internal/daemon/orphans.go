@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/orphans"
+	"vault/internal/index"
+	"vault/internal/orphans"
 )
 
 const (

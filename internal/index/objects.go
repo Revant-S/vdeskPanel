@@ -5,7 +5,7 @@ import (
 	"iter"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 type Object struct {

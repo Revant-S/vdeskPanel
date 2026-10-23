@@ -6,9 +6,9 @@ import (
 	"io/fs"
 	"syscall"
 
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/crypto"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 func (w *Workspace) Rename(ctx context.Context, parent model.Ino, name string, newParent model.Ino, newName string, noReplace bool) error {

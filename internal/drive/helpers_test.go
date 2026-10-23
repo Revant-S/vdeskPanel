@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/drive/drivefake"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/drive/drivefake"
+	"vault/internal/model"
 )
 
 const testChunkSize = 256 << 10

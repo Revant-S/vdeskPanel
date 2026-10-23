@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cosmoboy/vault/internal/cache"
-	"github.com/cosmoboy/vault/internal/crypto"
-	"github.com/cosmoboy/vault/internal/index"
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/cache"
+	"vault/internal/crypto"
+	"vault/internal/index"
+	"vault/internal/model"
 )
 
 var errChecksumMismatch = errors.New("syncer: uploaded body checksum differs from what was sent")

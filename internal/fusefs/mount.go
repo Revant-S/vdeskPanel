@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmoboy/vault/internal/model"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"vault/internal/model"
 )
 
 type Options struct {

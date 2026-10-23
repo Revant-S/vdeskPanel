@@ -13,7 +13,7 @@ import (
 	drive "google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 
-	"github.com/cosmoboy/vault/internal/model"
+	"vault/internal/model"
 )
 
 const (
