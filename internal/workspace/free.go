@@ -18,7 +18,8 @@ func (w *Workspace) FreeLocal(ctx context.Context, id model.ObjectID) (int64, er
 	defer w.mu.Unlock()
 	var freed int64
 	for _, entry := range w.filesUnder(id) {
-		if entry.State == model.CloudOnly {
+		// The state alone can't tell: reads leave partial bodies on CloudOnly files.
+		if entry.State == model.CloudOnly && !w.Cache.HasBody(entry.ID) {
 			continue
 		}
 		if entry.State == model.Dirty || entry.State == model.Corrupt || w.handles.hasWriter(entry.ID) {
@@ -35,6 +36,17 @@ func (w *Workspace) FreeLocal(ctx context.Context, id model.ObjectID) (int64, er
 		freed += entry.Size
 	}
 	return freed, nil
+}
+
+// NoteLocal records that the restorer finished a body, so the tree, and with it Free and the
+// tree view, see the file as local.
+func (w *Workspace) NoteLocal(id model.ObjectID) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if entry, ok := w.tree.Get(id); ok && (entry.State == model.CloudOnly || entry.State == model.Partial) {
+		entry.State = model.Local
+		w.tree.Update(entry)
+	}
 }
 
 func (w *Workspace) filesUnder(id model.ObjectID) []model.Entry {

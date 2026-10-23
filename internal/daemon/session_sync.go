@@ -57,7 +57,8 @@ func (s *session) openSync(ctx context.Context, restoreMode restore.Mode) error 
 			ActiveInterval: cfg.Polling.Active.Duration, IdleInterval: cfg.Polling.Idle.Duration, ActivityWindow: cfg.Polling.ActivityWindow.Duration})
 	s.devices = devices.New(devices.Deps{Remote: &remote.Devices{Log: remote.Log{Client: s.client}}, Keyring: s.keyring,
 		Random: rand.Reader, Now: d.Now, Logger: logger}, devices.Config{VaultID: s.vaultID, FolderID: s.folders.Devices})
-	s.restorer, err = restore.New(ctx, restore.Deps{Index: s.index, Cache: s.cache, UploadsPending: s.uploadsPending, Logger: logger},
+	s.restorer, err = restore.New(ctx, restore.Deps{Index: s.index, Cache: s.cache, UploadsPending: s.uploadsPending,
+		OnLocal: s.workspace.NoteLocal, Logger: logger},
 		restore.Config{Mode: restoreMode, Files: cfg.Workers.Downloads})
 	if err != nil {
 		return err

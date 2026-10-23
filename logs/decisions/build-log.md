@@ -216,3 +216,11 @@ Fixes:
 - **Fix.** `Restorer.KeepInCloud` (called by the daemon's Free before freeing) drops the files from `wanted`, adds them to a persisted `kept_in_cloud` set and cancels the round in flight. Restore-everything skips kept files; `Want`/`RequestLocal` (Download, or opening the file) take them out again. The set lives in kv as JSON beside `wanted`, the same mechanism and no schema change. A Free refused for Dirty files still leaves those files in the set, which is harmless: Dirty files are local anyway.
 - **Test.** Under Restore everything, a kept folder stays cloud-only across a restorer restart, and downloading a subfolder brings back only that subfolder.
 - **Also seen.** B downloaded a folder of 7,899 small files at about 1.8 files/s. That's bounded by requests per file, not bandwidth. To look into: requests per small-file download.
+
+## Fix: Free up space didn't free downloaded or partly read files (acceptance find)
+
+- **Symptom on B.** `vault download` of a 188 MB file filled the cache, and `vault free` reported success, but the cache stayed at 196 MB with the object still Local.
+- **Causes.** (1) The restorer writes Local into the index only. The daemon never connected its `OnLocal` hook, so the in-memory tree still said CloudOnly. (2) `FreeLocal` skipped files the tree called CloudOnly, but reads (seeks, previews) leave partial bodies on files whose state stays CloudOnly. Either way the body stayed on disk.
+- **Fix.** `FreeLocal` asks the cache whether a body exists (`Cache.HasBody`, one stat) instead of trusting the state. The daemon connects `OnLocal` to `Workspace.NoteLocal`, so downloads show as Local in the tree view too.
+- **Test.** In the daemon end-to-end test, B reads a cloud-only file and frees it, then downloads it and frees it again; the body must be gone each time. It fails without the fix with "still has a body after Free".
+- **Restart batching.** Each restart costs the owner a password entry, so fixes from here on are installed together, after the delete-path review.
