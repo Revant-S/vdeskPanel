@@ -30,6 +30,10 @@ type APIError struct {
 	Message string
 }
 
+func (e *APIError) StatusCode() int {
+	return e.Status
+}
+
 func (e *APIError) Error() string {
 	return fmt.Sprintf("drive: status %d (%s): %s", e.Status, e.Reason, e.Message)
 }

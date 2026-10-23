@@ -188,6 +188,9 @@ func (o *Outgoing) uploadResumable(ctx context.Context, step opStep, spec Remote
 			}
 		}
 		remote, err := o.Remote.ResumeUpload(ctx, op.Session, file, nil)
+		if isServerError(err) {
+			return model.RemoteFile{}, o.noteSessionFailure(ctx, step, err)
+		}
 		if !errors.Is(err, ErrUploadSessionExpired) {
 			return remote, err
 		}
@@ -209,4 +212,23 @@ func (o *Outgoing) discardBadUpload(ctx context.Context, step opStep, driveID st
 	}
 	step.op.NewDriveID, step.op.Session = ids[0], UploadSession{}
 	return step.save(ctx)
+}
+
+const maxSessionFailures = 2
+
+// noteSessionFailure counts server errors on an upload session and, when they repeat,
+// abandons the session and its reserved ID so the next try starts a clean upload.
+func (o *Outgoing) noteSessionFailure(ctx context.Context, step opStep, cause error) error {
+	op := step.op
+	op.SessionFailures++
+	if op.SessionFailures < maxSessionFailures {
+		return errors.Join(cause, step.save(ctx))
+	}
+	ids, err := o.Remote.GenerateIDs(ctx, 1)
+	if err != nil {
+		return errors.Join(cause, err)
+	}
+	o.Logger.Warn("abandoning an upload session Drive keeps failing", "oid", op.ObjectID)
+	op.Session, op.NewDriveID, op.SessionFailures = UploadSession{}, ids[0], 0
+	return errors.Join(cause, step.save(ctx))
 }
