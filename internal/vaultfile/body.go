@@ -203,13 +203,51 @@ func (b *Body) rewriteSegments(first, last, newSize int64, patch func(index int6
 	return nil
 }
 
+// RecoverInterruptedRewrite repairs what a rewrite killed midway leaves behind, given the size
+// the file's length implies. A body that grew only partway ends in a full segment still
+// sealed as non-final: it is resealed as final, keeping the bytes that reached disk. A
+// truncate to zero that wrote the empty final segment but never shortened the file is
+// finished. Anything else is left as it is.
+func (b *Body) RecoverInterruptedRewrite() (bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.aead == nil {
+		return false, ErrClosed
+	}
+	if b.size > 0 {
+		if _, err := b.openSegment(0, 0, true); err == nil {
+			if err := b.storage.Truncate(CiphertextSize(0)); err != nil {
+				return false, fmt.Errorf("finish truncate: %w", err)
+			}
+			b.size = 0
+			return true, nil
+		}
+	}
+	last := SegmentCount(b.size) - 1
+	length := segmentPlaintextLength(last, b.size)
+	if length != SegmentPlaintextSize {
+		return false, nil
+	}
+	if _, err := b.openSegment(last, length, true); err == nil {
+		return false, nil
+	}
+	plaintext, err := b.openSegment(last, length, false)
+	if err != nil {
+		return false, nil
+	}
+	return true, b.writeSegment(last, plaintext, true)
+}
+
 func (b *Body) readSegment(index int64) ([]byte, error) {
-	count := SegmentCount(b.size)
-	sealed := make([]byte, segmentPlaintextLength(index, b.size)+SegmentOverhead)
+	return b.openSegment(index, segmentPlaintextLength(index, b.size), index == SegmentCount(b.size)-1)
+}
+
+func (b *Body) openSegment(index, length int64, final bool) ([]byte, error) {
+	sealed := make([]byte, length+SegmentOverhead)
 	if _, err := b.storage.ReadAt(sealed, SegmentOffset(index)); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("read segment %d: %w", index, err)
 	}
-	plaintext, err := crypto.Open(b.aead, sealed, crypto.SegmentAD(b.header.BodyID, uint64(index), index == count-1))
+	plaintext, err := crypto.Open(b.aead, sealed, crypto.SegmentAD(b.header.BodyID, uint64(index), final))
 	if err != nil {
 		return nil, &SegmentError{Index: index}
 	}

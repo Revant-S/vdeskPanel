@@ -158,6 +158,30 @@ func (c *Cache) Free(ctx context.Context, id model.ObjectID) error {
 	return nil
 }
 
+// RecoverInterruptedRewrite repairs a local body whose rewrite a crash cut short (see
+// vaultfile.Body.RecoverInterruptedRewrite). It is meant for startup, before anything opens
+// the body.
+func (c *Cache) RecoverInterruptedRewrite(id model.ObjectID) (bool, error) {
+	if err := validateObjectID(id); err != nil {
+		return false, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, open := c.objects[id]; open {
+		return false, nil
+	}
+	o, err := c.openLocalObject(id)
+	if err != nil {
+		return false, err
+	}
+	defer o.close()
+	repaired, err := o.body.RecoverInterruptedRewrite()
+	if err == nil && repaired {
+		err = o.file.Sync()
+	}
+	return repaired, err
+}
+
 func isDirNotEmpty(err error) bool {
 	return errors.Is(err, syscall.ENOTEMPTY) || errors.Is(err, syscall.EEXIST)
 }
