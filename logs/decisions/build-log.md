@@ -186,3 +186,10 @@ Fixes:
 ## Module path (owner request)
 
 - The module was named `github.com/cosmoboy/vault` after the spec's byline. That repository doesn't exist and nothing was ever fetched from it, but the owner wants imports to show plainly that the code is the project's own. It's now `module vault`, imported as `vault/internal/...`. Third-party paths (`golang.org/x/...`, go-fuse, Wails and so on) are real dependencies and stay as they are. `01-plan.md` keeps the old name as a historical record.
+
+## CLI: history, devices, settings, signout (owner request)
+
+- The panel is deferred to save tokens, so the CLI now covers everything the daemon API offers: `vault history [--path] [--ops] [-n] [--before]`, `vault devices`, `vault devices retire <id>`, `vault settings`, `vault settings set key=value…` and `vault signout [--yes]`.
+- Settings keys match `config.toml` names. `set` reads the current settings, changes only the named keys and sends the whole set back, so the daemon's validation still applies.
+- `vault status` now reports offline (from Drive's last answer) and the transfer speed.
+- Tried read-only on the live vault: history, devices and settings all answer.
