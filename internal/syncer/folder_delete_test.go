@@ -185,3 +185,68 @@ func TestEditInsideFolderDeletedHereButNotYetSynced(t *testing.T) {
 	a.Restart()
 	expectDeepFolderRestores(t, n, b, a, b)
 }
+
+func TestCreateIntoAFolderWhoseDeleteIsStillPendingJoinsItsTrash(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.Mkdir("/D")
+	a.WriteFile("/D/old.txt", []byte("old"))
+	a.Sync()
+	b.Poll()
+	a.Remove("/D/old.txt")
+	a.Remove("/D")
+	b.WriteFile("/D/new.txt", []byte("made on b"))
+	b.Sync()
+	a.Poll()
+	a.Sync()
+	assertConverged(t, n, a, b)
+
+	if _, err := a.Workspace.RestoreTrash(ctx, trashIDs(t, a)["/D"]); err != nil {
+		t.Fatal(err)
+	}
+	tree := assertConverged(t, n, a, b)
+	if tree["/D/new.txt"] != "made on b" || tree["/D/old.txt"] != "old" {
+		t.Fatalf("restoring /D on a gave %s", describeTree(tree))
+	}
+}
+
+func TestMoveOrRestoreIntoAFolderWhoseDeleteIsStillPendingJoinsItsTrash(t *testing.T) {
+	for _, viaRestore := range []bool{false, true} {
+		ctx := context.Background()
+		n := devicetest.NewNetwork(t)
+		a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+		a.Mkdir("/D")
+		a.WriteFile("/D/old.txt", []byte("old"))
+		a.WriteFile("/m.txt", []byte("moved in on b"))
+		a.Sync()
+		b.Poll()
+		if viaRestore {
+			b.Remove("/m.txt")
+			b.Sync()
+			a.Poll()
+		}
+		a.Remove("/D/old.txt")
+		a.Remove("/D")
+		if viaRestore {
+			b.Mkdir("/tmp")
+			b.Sync()
+			if _, err := b.Workspace.RestoreTrash(ctx, trashIDs(t, b)["/m.txt"]); err != nil {
+				t.Fatal(err)
+			}
+			b.Sync()
+		}
+		b.Rename("/m.txt", "/D/m.txt")
+		b.Sync()
+		a.Poll()
+		a.Sync()
+		assertConverged(t, n, a, b)
+		if _, err := a.Workspace.RestoreTrash(ctx, trashIDs(t, a)["/D"]); err != nil {
+			t.Fatal(err)
+		}
+		tree := assertConverged(t, n, a, b)
+		if tree["/D/m.txt"] != "moved in on b" {
+			t.Fatalf("restore=%v: restoring /D on a gave %s", viaRestore, describeTree(tree))
+		}
+	}
+}
