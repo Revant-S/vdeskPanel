@@ -172,3 +172,13 @@ Fixes:
 - **Online.** `drive.Client.LastContact` records any answer from Drive, including error answers. The daemon counts as online while Drive answered within two idle poll intervals plus a minute (2 min by default). `status.Online` uses the same check instead of a hard-coded true.
 - **Rule.** One notification per stretch in which the backlog stays non-empty for 10 minutes online. Time offline restarts the count, and the stretch ends only when the backlog reaches zero. This is per stretch, not per file: per-file ages would mean decoding every pending op each minute. With a long first import it fires once, as a heads-up.
 - **Byte formatting.** Moved from the CLI to `api.FormatBytes`, so the daemon's notification and the CLI print sizes the same way.
+
+## Orphan GC (R15)
+
+- **What counts.** A Drive file under `tree/` or the top level of `trash/` that carries our `vid` and whose ID is in no object row, trash row or open batch (new, current or result Drive ID). Trash item names (`t-…`) aren't Drive IDs and are left out.
+- **Walk.** It descends only into referenced folders. An orphan folder is deleted whole, and trashed folders aren't entered, since their subtree belongs to the trash item.
+- **Races.** References are read before the walk (to choose which folders to descend into) and again after it. A file is deleted only if it's unreferenced in the second read and older than 30 days by Drive's `createdTime`. So a commit applied mid-walk, or another device's fresh upload that hasn't been applied here yet, is never touched. 404 on delete counts as success (client behaviour).
+- **Schedule.** Runs in the daily expiry loop, at most once per 24 h across restarts (`orphans/last_collected` in kv), and only while online. It lists every folder (up to 4 in parallel), so it isn't rerun at every unlock.
+- **Live-index check before shipping.** Every trash row has a Drive ID. The only synced objects without one are local-only desktop-trash entries and the root folder, so nothing live would be taken for an orphan.
+- **Test.** Unit test of the rules, plus the daemon end-to-end test running GC with no age limit on a freshly synced vault, which finds nothing.
+- **Device records.** Also refreshed on the daily pass, so a device that joined later gets its name without waiting for an unlock.
