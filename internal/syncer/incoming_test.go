@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"vault/internal/devicetest"
 	"vault/internal/drive/drivefake"
@@ -328,5 +329,26 @@ func TestRestartSettlesTrashEntriesOlderBuildsLeftDirty(t *testing.T) {
 	a.Restart()
 	if files, _, err := a.Outgoing.Backlog(ctx); err != nil || files != 0 {
 		t.Fatalf("after restart a counts %d files not backed up (%v)", files, err)
+	}
+}
+
+func TestPendingAttributeChangeIsNotAnUnsyncedEdit(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.WriteFile("/doc.txt", []byte("base"))
+	a.Sync()
+	b.Poll()
+	a.Touch("/doc.txt", time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC))
+	b.WriteFile("/doc.txt", []byte("newer edit on b"))
+	b.Sync()
+	a.Poll()
+	a.Sync()
+	expectContent(t, a, "/doc.txt", "newer edit on b")
+	if reasons := trashReasons(t, a); len(reasons) != 0 {
+		t.Fatalf("a touched file went to trash as an edit: %v", reasons)
+	}
+	if files, _, err := a.Outgoing.Backlog(ctx); err != nil || files != 0 {
+		t.Fatalf("a counts %d files not backed up (%v)", files, err)
 	}
 }

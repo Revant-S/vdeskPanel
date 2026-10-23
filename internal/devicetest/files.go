@@ -7,6 +7,7 @@ import (
 	"io"
 	"path"
 	"strings"
+	"time"
 
 	"vault/internal/crypto"
 	"vault/internal/fusefs"
@@ -179,3 +180,11 @@ type readOnly struct{ *bytes.Reader }
 
 func (*readOnly) WriteAt([]byte, int64) (int, error) { return 0, io.ErrClosedPipe }
 func (*readOnly) Truncate(int64) error               { return io.ErrClosedPipe }
+
+// Touch sets a new modification time, which queues an attribute change and nothing else.
+func (d *Device) Touch(p string, modTime time.Time) {
+	d.t.Helper()
+	if _, err := d.Workspace.Setattr(context.Background(), d.inode(p), fusefs.AttrChange{ModTime: &modTime}); err != nil {
+		d.t.Fatalf("%s: touch %s: %v", d.ID, p, err)
+	}
+}

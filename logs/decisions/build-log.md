@@ -249,3 +249,15 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 ### Reviewed, no change
 
 - **Packing order** (`PackIfDue`): pack written before singles are deleted; any read error stops before deleting; singles created during packing aren't in the delete list.
+
+### Fix: a pending attribute change counted as an unsynced edit
+
+- `hasUnsyncedContent` treated a pending `attr` op (a touch or chmod) like unsaved bytes. When another device's newer edit or delete arrived, the file went through `supersedeLocal`: a holder object took the body and was queued for upload into trash as "superseded". If the file had a local body, that was a pointless trash entry. If it was cloud-only, the holder had no body: its upload could never succeed, the backlog stuck at one file, and restore was blocked. A had 38k pending attr ops during its first import.
+- **Fix.** Only a Dirty state or a pending create or modify counts as unsynced content. A pending attr op stays queued and applies on top of the remote version.
+- **Guard.** If moving a superseded body to its holder fails, the later free of that body is now skipped (`remoteApply.unmoved`) and logged as an error, so the edit's bytes stay on disk. Before, the free ran anyway and the edit was gone.
+- **Test.** A touches a file while B edits it: A ends with B's content, no trash entry and an empty backlog. On the old code the touch went to trash as "superseded".
+
+### Reviewed, no change
+
+- **Remote delete over a local unsynced edit** (`trashLocally`): supersedes into a holder first, and the free runs after the move in the same ordered after-list.
+- **Remote modify over an unsynced edit** (`content`): newer remote wins with the local edit superseded; an older remote is ignored.

@@ -107,6 +107,7 @@ func (a *remoteApply) supersedeLocal(object index.Object, reason model.DeleteRea
 	}
 	a.after = append(a.after, func() {
 		if err := a.ws.Cache.Replace(a.ctx, holder.ID, a.ws.Cache.BodyPath(object.ID)); err != nil {
+			a.unmoved[object.ID] = true
 			a.ws.Logger.Error("keep superseded body", "oid", object.ID, "holder", holder.ID, "err", err)
 		}
 	})
