@@ -96,12 +96,21 @@ func Open(ctx context.Context, deps Deps, config Config) (*Workspace, error) {
 	if _, err := repairer.repairOrphans(ctx); err != nil {
 		return nil, fmt.Errorf("repair orphaned objects: %w", err)
 	}
+	if err := repairer.finishAdoptions(ctx); err != nil {
+		return nil, err
+	}
+	if err := repairer.finishBodyMoves(ctx); err != nil {
+		return nil, err
+	}
 	built, err := tree.Build(ctx, liveRows(ctx, deps.Index), deps.Names.DecryptName, runtime.GOMAXPROCS(0))
 	if err != nil {
 		return nil, fmt.Errorf("build tree: %w", err)
 	}
 	ws := &Workspace{Deps: deps, config: config, tree: built, inodes: newInodeMap(), handles: newHandleRegistry(),
 		pendingInvalidations: make(chan entryInvalidation, invalidationQueueSize)}
+	if err := ws.finishRenamesOver(ctx); err != nil {
+		return nil, err
+	}
 	if err := ws.recoverInterruptedWrites(ctx); err != nil {
 		return nil, err
 	}
