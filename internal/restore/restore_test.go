@@ -207,3 +207,33 @@ func waitFor(t *testing.T, condition func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+func TestKeptInCloudStaysFreedUnderRestoreEverythingAcrossRestarts(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newSyncedFixture(t)
+	f.forgetBodies()
+	r := f.newRestorer(restore.Config{}, nil)
+	if err := r.KeepInCloud(ctx, []model.ObjectID{f.device.ObjectID("/media")}); err != nil {
+		t.Fatal(err)
+	}
+	r = f.newRestorer(restore.Config{}, nil)
+	if err := r.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for path := range f.files {
+		freed := strings.HasPrefix(path, "/media/")
+		if got := f.state(path) == model.CloudOnly; got != freed {
+			t.Fatalf("%s cloud only = %v, want %v", path, got, freed)
+		}
+	}
+	if err := r.RequestLocal(ctx, []model.ObjectID{f.device.ObjectID("/media/sub")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.state("/media/sub/a.bin") != model.Local || f.state("/media/photo.jpg") != model.CloudOnly {
+		t.Fatal("downloading a folder should bring back only that folder")
+	}
+}

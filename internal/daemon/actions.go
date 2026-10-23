@@ -73,6 +73,9 @@ func (d *Daemon) Free(ctx context.Context, vaultPath string) error {
 	if err != nil {
 		return err
 	}
+	if err := s.restorer.KeepInCloud(ctx, []model.ObjectID{entry.ID}); err != nil {
+		return err
+	}
 	_, err = s.workspace.FreeLocal(ctx, entry.ID)
 	if errors.Is(err, workspace.ErrNotBackedUp) {
 		return fmt.Errorf("%w: %v", api.ErrBusy, err)
