@@ -155,13 +155,13 @@ func touches(view api.CommitView, filter string) bool {
 	return false
 }
 
-// Devices lists every device that has written to the log, named as it last named itself.
+// Devices lists every device with a record on Drive or a commit in the log. A record's name
+// and first-seen time win over the log's, since the record is updated on rename.
 func (d *Daemon) Devices(ctx context.Context) ([]api.DeviceView, error) {
 	s, err := d.currentSession()
 	if err != nil {
 		return nil, err
 	}
-	retired := s.retiredDevices(ctx)
 	byID := map[string]*api.DeviceView{}
 	err = s.index.View(ctx, func(tx *index.Tx) error {
 		records, err := tx.CommitsBefore(model.Stamp{}, 100000)
@@ -182,9 +182,17 @@ func (d *Daemon) Devices(ctx context.Context) ([]api.DeviceView, error) {
 	if byID[string(d.device)] == nil {
 		byID[string(d.device)] = &api.DeviceView{ID: string(d.device), Name: d.config.DeviceName, FirstSeen: d.Now()}
 	}
+	for id, record := range s.devices.Cached() {
+		device := byID[string(id)]
+		if device == nil {
+			device = &api.DeviceView{ID: string(id)}
+			byID[device.ID] = device
+		}
+		device.Name, device.FirstSeen, device.Retired = record.Name, record.FirstSeen, record.Retired
+	}
 	var out []api.DeviceView
 	for _, device := range byID {
-		device.This, device.Retired = device.ID == string(d.device), retired[device.ID]
+		device.This = device.ID == string(d.device)
 		out = append(out, *device)
 	}
 	sort.Slice(out, func(a, b int) bool { return out[a].FirstSeen.Before(out[b].FirstSeen) })

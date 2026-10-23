@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,12 +9,11 @@ import (
 
 	"github.com/cosmoboy/vault/internal/api"
 	"github.com/cosmoboy/vault/internal/config"
+	"github.com/cosmoboy/vault/internal/devices"
 	"github.com/cosmoboy/vault/internal/index"
 	"github.com/cosmoboy/vault/internal/model"
 	"github.com/cosmoboy/vault/internal/workspace"
 )
-
-const retiredDevicesKey = "devices/retired"
 
 func (d *Daemon) RestoreTrash(ctx context.Context, id string) (string, error) {
 	s, err := d.currentSession()
@@ -162,24 +160,7 @@ func (d *Daemon) RetireDevice(ctx context.Context, deviceID string) error {
 	if err != nil {
 		return err
 	}
-	retired := s.retiredDevices(ctx)
-	retired[deviceID] = true
-	data, err := json.Marshal(retired)
-	if err != nil {
-		return err
-	}
-	return s.index.Update(ctx, func(tx *index.Tx) error { return tx.SetKV(retiredDevicesKey, data) })
-}
-
-func (s *session) retiredDevices(ctx context.Context) map[string]bool {
-	retired := map[string]bool{}
-	s.index.View(ctx, func(tx *index.Tx) error {
-		if data, ok, err := tx.KV(retiredDevicesKey); err == nil && ok {
-			json.Unmarshal(data, &retired)
-		}
-		return nil
-	})
-	return retired
+	return s.devices.Publish(ctx, model.DeviceID(deviceID), func(r *devices.Record) { r.Retired = true })
 }
 
 func notFoundAsAPI(err error) error {

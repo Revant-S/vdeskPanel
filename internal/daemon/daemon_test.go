@@ -102,4 +102,18 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if err != nil || len(page.Commits) == 0 || page.Commits[0].DeviceName != "amber" || len(page.Devices) != 2 {
 		t.Fatalf("B history = %+v, %v", page, err)
 	}
+
+	if err := b.RetireDevice(ctx, string(a.device)); err != nil {
+		t.Fatal(err)
+	}
+	session, _ := a.currentSession()
+	if _, err := session.devices.Refresh(ctx); err != nil {
+		t.Fatal(err)
+	}
+	devices, _ := a.Devices(ctx)
+	for _, device := range devices {
+		if device.Retired != (device.ID == string(a.device)) || (device.ID == string(b.device) && device.Name != "birch") {
+			t.Fatalf("A's device list = %+v", devices)
+		}
+	}
 }
