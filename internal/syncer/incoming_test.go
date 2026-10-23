@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -120,6 +121,9 @@ func TestUnsyncedEditLosingToNewerRemoteEditGoesToTrash(t *testing.T) {
 		}
 	}
 	assertTrashHolds(t, n, "older edit on a")
+	if files, _, err := a.Outgoing.Backlog(context.Background()); err != nil || files != 0 {
+		t.Fatalf("a still counts %d files not backed up (%v) after its version went to trash", files, err)
+	}
 }
 
 func TestNewerEditUploadedSecondStillWins(t *testing.T) {
@@ -292,4 +296,37 @@ func TestNetworkDropMidSyncCompletesWithoutDuplicates(t *testing.T) {
 		t.Fatalf("B sees %d files, want 20", got)
 	}
 	expectContent(t, b, "/Docs/fc", strings.Repeat("d", 2000))
+}
+
+func TestRestartSettlesTrashEntriesOlderBuildsLeftDirty(t *testing.T) {
+	ctx := context.Background()
+	n := devicetest.NewNetwork(t)
+	a, b := n.NewDevice(t, "a"), n.NewDevice(t, "b")
+	a.WriteFile("/doc.txt", []byte("base"))
+	a.Sync()
+	b.Poll()
+	a.WriteFile("/doc.txt", []byte("older edit on a"))
+	b.WriteFile("/doc.txt", []byte("newer edit on b"))
+	b.Sync()
+	a.Poll()
+	a.Sync()
+	err := a.Index.Update(ctx, func(tx *index.Tx) error {
+		records, err := tx.TrashRecords()
+		if err != nil || len(records) != 1 {
+			return fmt.Errorf("trash records %v: %w", records, err)
+		}
+		object, err := tx.Object(records[0].ObjectID)
+		if err != nil {
+			return err
+		}
+		object.State = model.Dirty
+		return tx.PutObject(object)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Restart()
+	if files, _, err := a.Outgoing.Backlog(ctx); err != nil || files != 0 {
+		t.Fatalf("after restart a counts %d files not backed up (%v)", files, err)
+	}
 }

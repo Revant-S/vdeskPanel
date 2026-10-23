@@ -124,6 +124,10 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 	case op.Kind == NetCreate, op.Kind == NetModify:
 		applyContentResult(&object, op.Result)
 	case op.Kind == NetDelete:
+		// settleLocalBody freed the body, so a trashed file lives only on Drive now.
+		if object.Kind == model.KindFile {
+			object.State = model.CloudOnly
+		}
 		return o.recordTrash(tx, op, object, trashIDs)
 	}
 	if object.State == model.Dirty && o.isClean(tx, plan.ID, op.ObjectID) {
