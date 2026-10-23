@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/cosmoboy/vault/internal/api"
 	"strings"
 	"text/tabwriter"
 
@@ -50,7 +51,7 @@ func (c *cli) emptyTrashCommand() *cobra.Command {
 			for _, item := range items {
 				size += item.Size
 			}
-			if !yes && !confirm(cmd, fmt.Sprintf("Permanently delete %d items (%s)? [y/N] ", len(items), humanBytes(size))) {
+			if !yes && !confirm(cmd, fmt.Sprintf("Permanently delete %d items (%s)? [y/N] ", len(items), api.FormatBytes(size))) {
 				return nil
 			}
 			result, err := c.client.EmptyTrash(cmd.Context())

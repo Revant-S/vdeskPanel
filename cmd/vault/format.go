@@ -21,8 +21,8 @@ func formatStatus(status api.Status, now time.Time) string {
 		fmt.Fprintln(&out, backupLine(status, now))
 	}
 	if r := status.Restore; r != nil {
-		fmt.Fprintf(&out, "Restoring: %d of %d files, %s of %s%s\n", r.FilesDone, r.FilesTotal, humanBytes(r.BytesDone),
-			humanBytes(r.BytesTotal), map[bool]string{true: " (paused)"}[r.Paused])
+		fmt.Fprintf(&out, "Restoring: %d of %d files, %s of %s%s\n", r.FilesDone, r.FilesTotal, api.FormatBytes(r.BytesDone),
+			api.FormatBytes(r.BytesTotal), map[bool]string{true: " (paused)"}[r.Paused])
 	}
 	if status.CorruptFiles > 0 {
 		fmt.Fprintf(&out, "%d files failed an integrity check and are not uploaded\n", status.CorruptFiles)
@@ -35,7 +35,7 @@ func formatStatus(status api.Status, now time.Time) string {
 
 func backupLine(status api.Status, now time.Time) string {
 	if status.NotBackedUpFiles > 0 {
-		return fmt.Sprintf("%d files not backed up yet · %s", status.NotBackedUpFiles, humanBytes(status.NotBackedUpBytes))
+		return fmt.Sprintf("%d files not backed up yet · %s", status.NotBackedUpFiles, api.FormatBytes(status.NotBackedUpBytes))
 	}
 	if status.LastBackedUp.IsZero() {
 		return "All backed up"
@@ -53,18 +53,6 @@ func ago(elapsed time.Duration) string {
 		return fmt.Sprintf("%d h ago", int(elapsed.Hours()))
 	}
 	return fmt.Sprintf("%d days ago", int(elapsed.Hours()/24))
-}
-
-func humanBytes(n int64) string {
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-	value, unit := float64(n), 0
-	for value >= 1000 && unit < len(units)-1 {
-		value, unit = value/1000, unit+1
-	}
-	if unit == 0 {
-		return fmt.Sprintf("%d B", n)
-	}
-	return fmt.Sprintf("%.0f %s", value, units[unit])
 }
 
 // readPassword reads without echo. The caller sends the bytes, and the client wipes them.

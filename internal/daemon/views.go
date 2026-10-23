@@ -15,7 +15,7 @@ import (
 )
 
 func (s *session) fillStatus(ctx context.Context, status *api.Status) {
-	status.Online = true
+	status.Online = s.online()
 	status.NotBackedUpFiles, status.NotBackedUpBytes, _ = s.outgoing.Backlog(ctx)
 	s.index.View(ctx, func(tx *index.Tx) error {
 		pending, _ := tx.CountPendingOps()
