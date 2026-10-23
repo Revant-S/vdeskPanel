@@ -16,8 +16,17 @@ func (a *remoteApply) trashRestore(op journal.Op) error {
 	if err != nil || len(rows) == 0 {
 		return err
 	}
+	// A restore into a folder deleted here meanwhile joins that folder's trash entry, as a
+	// move or create into it would (row 7).
+	parent, parentLive, err := a.parentState(op.ParentID)
+	if err != nil {
+		return err
+	}
 	for _, row := range rows {
 		row.TrashID, row.DeleteVer, row.PlacementVer = "", model.Stamp{}, op.Version
+		if !parentLive {
+			row.TrashID, row.DeleteVer = parent.TrashID, parent.DeleteVer
+		}
 		if row.ID == op.ObjectID {
 			row.ParentID, row.EncName = op.ParentID, op.EncName
 		}
@@ -28,8 +37,8 @@ func (a *remoteApply) trashRestore(op journal.Op) error {
 			return err
 		}
 	}
-	if _, parentLive, err := a.parentState(op.ParentID); err != nil || !parentLive {
-		return err
+	if !parentLive {
+		return nil
 	}
 	name, err := a.ws.Names.DecryptName(op.ObjectID, op.EncName)
 	if err != nil {

@@ -136,6 +136,44 @@ func TestThreeDevicesMoveEditAndFolderDelete(t *testing.T) {
 	assertTrashHolds(t, n, "edited on b")
 }
 
+func TestRestoreFolderThenAddInsideBeforeSync(t *testing.T) {
+	n, a, b := twoDevicesWith(t, deepFolder)
+	removeDeepFolder(a)
+	a.Sync()
+	b.Poll()
+	restoreAll(t, a)
+	a.WriteFile("/P/Q/new.txt", []byte("new"))
+	a.WriteFile("/P/Q/deep.txt", []byte("deep edited"))
+	a.Rename("/P/Q", "/P/R")
+	a.Sync()
+	expectTree(t, assertConverged(t, n, a, b), map[string]string{"/P": "/", "/P/R": "/", "/P/R/deep.txt": "deep edited",
+		"/P/R/new.txt": "new"})
+}
+
+func TestRestoreIntoFolderDeletedElsewhere(t *testing.T) {
+	n, a, b := twoDevicesWith(t, func(a *devicetest.Device) {
+		a.Mkdir("/D")
+		a.WriteFile("/D/f.txt", []byte("f"))
+		a.WriteFile("/D/g.txt", []byte("g"))
+	})
+	a.Remove("/D/f.txt")
+	a.Sync()
+	b.Poll()
+	b.Remove("/D/g.txt")
+	b.Remove("/D")
+	restoreAll(t, a)
+	b.Sync()
+	a.Sync()
+	settle(t, a, b)
+	a.Restart()
+	b.Restart()
+	if tree := assertConverged(t, n, a, b); len(tree) != 0 {
+		t.Fatalf("tree = %s, want the restored file inside the deleted folder", describeTree(tree))
+	}
+	restoreAll(t, b)
+	expectTree(t, assertConverged(t, n, a, b), map[string]string{"/D": "/", "/D/f.txt": "f", "/D/g.txt": "g"})
+}
+
 func TestEditInsideFolderDeletedHereButNotYetSynced(t *testing.T) {
 	n, a, b := twoDevicesWith(t, deepFolder)
 	removeDeepFolder(a)

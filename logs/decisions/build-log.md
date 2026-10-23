@@ -369,3 +369,12 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Cause.** Row 9 wasn't implemented. On A the tree refused B's newer move ("remote move refused locally") and dropped it; on B, A's move was newer than X's placement (B had moved Y, not X), so B applied it, and in other orders the moves simply crossed.
 - **Fix.** `breakMoveCycle`: before a remote folder move, if its target lies inside the moving folder, compare the incoming stamp with the placement of the folder inside the chain. If the incoming move is older it is skipped. If it is newer, that folder goes back to the root (renamed `(conflict <device>)` if the name is taken) and the move back is logged, as row 9 asks of the older move's author.
 - **Test.** `TestMoveCycleNewerMoveWins`, both sync orders, with restarts: both devices and a fresh one end with `/X/Y`. It fails without the fix with the two devices diverged.
+
+### Fix: a restore into a folder deleted on another device diverged
+
+- **Symptom.** A restores `/D/f.txt` while B deletes `/D`. A put `f.txt` into `/D`'s trash entry; B made the rows live with a deleted parent, so on its next start `f.txt` appeared in `/Recovered` on B only.
+- **Cause.** `trashRestore` cleared the trash ID first and only then noticed the parent wasn't live.
+- **Fix.** A remote restore into a deleted folder joins that folder's trash entry, as a create or move into it already does (row 7).
+- **Test.** `TestRestoreIntoFolderDeletedElsewhere`: both devices and a fresh one agree after restarts, and restoring `/D` brings back both files. It fails without the fix.
+- **Not fixed (noted).** When the folder's delete is still pending on the receiver (not yet synced), a move, create or restore into it gets the folder's delete stamp but no trash ID, and the folder's batch doesn't pick it up, so it isn't part of the trash entry there. This predates this branch (`hideUnder`); a fix would have the folder's finalize sweep such rows into its entry.
+- **Passed without change.** Restoring a folder, then adding, editing and renaming inside it before the sync (`TestRestoreFolderThenAddInsideBeforeSync`).
