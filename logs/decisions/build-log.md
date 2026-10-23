@@ -281,3 +281,14 @@ Every code path that deletes or overwrites data on Drive or on disk is reviewed 
 - **Race.** A deletes a file (trash item X), restores it and deletes it again (trash item Y, same Drive file, now named Y in `trash/`). B, which hasn't applied the restore yet, purges X. `purgeRemote` only checked that the file was still under `trash/`, so it deleted Y's body: A's trash still listed Y, but it could no longer be restored.
 - **Fix.** A purge also requires the Drive file to still carry the trash item's own name, which every trash upload and move sets. Otherwise it is skipped like a purge that lost to a restore, so the rows stay and the restore and the new delete apply on top of them.
 - **Test.** `TestStalePurgeSparesTheSameFileTrashedAgain`: after B's stale purge, Y is still on Drive and on both devices, and B can restore it. It fails without the fix with nothing left in Drive's trash.
+
+## Sync conflicts and ordering bug hunt (test/sync-conflicts)
+
+Scenarios run with every device synced and polled until quiet, then checked for one tree (paths and contents), one trash, zero backlog, and the same tree on a freshly joined device (`converge_test.go`).
+
+### Fix: an edit inside a folder deleted on another device was lost or resurrected
+
+- **Symptoms.** A deletes `/P` (with `/P/Q/deep.txt`) while B edits `deep.txt`. (1) If B's edit was older, A's trash entry kept pointing at the version B's finalize had just deleted from Drive: restoring `/P` on A gave a 404 for `deep.txt`, and B's edit sat on Drive unreferenced until orphan GC. (2) If B's edit was newer, or A had not synced its delete yet, A brought `deep.txt` back to life with a deleted parent; on the next start it appeared in `/Recovered` on A only.
+- **Cause.** `contentForDeleted` handled every deleted object as if it were deleted on its own (rows 4 and 5): a newer edit resurrects, an older one is ignored. For a file inside a deleted folder, row 7 says the folder delete wins whatever the stamps, and the edit's body lives inside the trashed folder on Drive, replacing the version the trash entry named.
+- **Fix.** When the object's parent isn't live, the edit never resurrects it; the trashed row takes the edit's body if its content stamp is newer, so every device's trash entry names the same, existing version.
+- **Tests.** `TestOlderEditInsideFolderDeletedElsewhere`, `TestNewerEditInsideFolderDeletedElsewhere`, `TestEditInsideFolderDeletedHereButNotYetSynced`: the folder stays deleted on A, B and a fresh device across restarts, and restoring it brings back B's edit. All three fail without the fix.

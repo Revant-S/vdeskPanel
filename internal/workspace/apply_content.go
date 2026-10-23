@@ -97,6 +97,12 @@ func (a *remoteApply) updateTreeEntry(object index.Object) error {
 // file back; an older one leaves it deleted, but a pending local delete is pointed at the
 // newer Drive version so that version is what ends up in the trash.
 func (a *remoteApply) contentForDeleted(object index.Object, op journal.Op) error {
+	if _, parentLive, err := a.parentState(object.ParentID); err != nil || !parentLive {
+		if err != nil {
+			return err
+		}
+		return a.contentInsideDeletedFolder(object, op)
+	}
 	pendingDelete := object.TrashID == ""
 	if !op.Version.After(object.DeleteVer) {
 		if !pendingDelete {
@@ -113,6 +119,19 @@ func (a *remoteApply) contentForDeleted(object index.Object, op journal.Op) erro
 		return err
 	}
 	return a.reinsert(object)
+}
+
+// contentInsideDeletedFolder handles an edit of a file whose folder is deleted here. The
+// folder delete wins whatever the stamps, so the file stays deleted. The edit's body was
+// uploaded into the deleted folder and its author removes the version it replaced, so the
+// trash entry takes the newer version, as every other device does.
+func (a *remoteApply) contentInsideDeletedFolder(object index.Object, op journal.Op) error {
+	if !op.Version.After(object.ContentVer) {
+		return nil
+	}
+	object.DriveID, object.BodyID, object.BodyMD5, object.ContentMAC = op.DriveID, op.BodyID, op.BodyMD5, op.ContentMAC
+	object.Size, object.ModTime, object.Executable, object.ContentVer = op.Size, op.ModTime, op.Executable, op.Version
+	return a.tx.PutObject(object)
 }
 
 func (a *remoteApply) reinsert(object index.Object) error {
