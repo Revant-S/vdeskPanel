@@ -102,6 +102,15 @@ func (c *Cache) Close() {
 	}
 }
 
+// HasBody reports whether any of the body is on disk, including a partial one left by reads.
+func (c *Cache) HasBody(id model.ObjectID) bool {
+	if validateObjectID(id) != nil {
+		return false
+	}
+	_, err := os.Stat(c.BodyPath(id))
+	return err == nil
+}
+
 func (c *Cache) BodyPath(id model.ObjectID) string {
 	shard := string(id)
 	if len(shard) > 2 {
