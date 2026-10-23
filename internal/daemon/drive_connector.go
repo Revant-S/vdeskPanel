@@ -48,7 +48,7 @@ func (g *GoogleConnector) TokenSource(ctx context.Context, token *oauth2.Token) 
 
 // Connect lets the Drive client force a token refresh on 401 when the source supports it.
 func (g *GoogleConnector) Connect(ctx context.Context, tokens oauth2.TokenSource) (*drive.Client, error) {
-	httpClient := &http.Client{Transport: &oauth2.Transport{Source: tokens, Base: http.DefaultTransport}}
+	httpClient := &http.Client{Transport: &oauth2.Transport{Source: tokens, Base: healthCheckedTransport()}}
 	deps := drive.Deps{HTTPClient: httpClient, Logger: g.Logger, Now: time.Now}
 	if refresher, ok := tokens.(drive.TokenRefresher); ok {
 		deps.TokenRefresher = refresher
@@ -108,4 +108,12 @@ func (u *UnavailableConnector) TokenSource(_ context.Context, token *oauth2.Toke
 
 func (u *UnavailableConnector) Connect(context.Context, oauth2.TokenSource) (*drive.Client, error) {
 	return nil, fmt.Errorf("google sign-in is not configured: %w", u.Reason)
+}
+
+// healthCheckedTransport pings idle HTTP/2 connections, so one that died silently, after
+// sleep or a network change, is noticed and replaced rather than waited on forever.
+func healthCheckedTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.HTTP2 = &http.HTTP2Config{SendPingTimeout: 30 * time.Second, PingTimeout: 15 * time.Second}
+	return transport
 }
