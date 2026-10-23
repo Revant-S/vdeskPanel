@@ -135,3 +135,20 @@ func (o *Outgoing) loadOpenBatches(ctx context.Context) ([]*BatchPlan, error) {
 	})
 	return plans, err
 }
+
+// BatchDriveIDs returns every Drive ID that open batches have reserved, created or are about
+// to replace, so a sweep of Drive never mistakes them for orphans.
+func (o *Outgoing) BatchDriveIDs(ctx context.Context) (map[string]bool, error) {
+	plans, err := o.loadOpenBatches(ctx)
+	ids := map[string]bool{}
+	for _, plan := range plans {
+		for _, op := range plan.Ops {
+			for _, id := range []string{op.NewDriveID, op.Object.DriveID, op.Result.DriveID} {
+				if id != "" {
+					ids[id] = true
+				}
+			}
+		}
+	}
+	return ids, err
+}
