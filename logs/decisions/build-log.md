@@ -145,3 +145,9 @@ Fixes:
 - **Cause.** Nautilus's Move to Trash on a folder renames it into `.Trash-<uid>/files/`. The workspace turned that rename into a delete of the folder object only, so its contents stayed live in the index under a deleted parent. The next unlock couldn't build the tree. The orphans' pending uploads also waited forever for a parent that would never reach Drive, which is part of the "not backed up" count. A move into any other local-only folder had the same bug.
 - **Fix.** Such renames now delete the whole subtree, children first (`deleteSubtree`), so the folder becomes one coalesced trash entry.
 - **Repair.** On open, `repairOrphans` moves live objects whose parent isn't live into a new top-level `Recovered <date>` folder, queued as create plus moves, so they become reachable and sync again. Nothing is deleted. The owner decides what to keep.
+
+## Fix: one 9 MB upload stuck on a dead session
+
+- **What the index showed:** 3,598 files synced, 40,471 dirty. The open batch was blocked on one 9 MB file, whose resumable session had answered HTTP 500 more than 230 times since the day before. Drive's documented advice for repeated 5xx on a session is to start a new one.
+- **Fix:** after 2 server errors (`isServerError`, via `drive.APIError.StatusCode`), the op drops its session and reserved ID and uploads through a fresh session. A test uses the fake Drive with a session that always fails.
+- **Unlock speed:** crash recovery at unlock now writes to the index only when a Dirty file's recorded size is wrong or its op is missing. Before, it did one FULL-sync write per Dirty file: about 3 minutes for 40k files.
