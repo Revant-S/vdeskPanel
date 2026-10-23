@@ -30,9 +30,14 @@ func callWithRetry[T any](ctx context.Context, c *Client, bucket *adaptiveBucket
 		result, err := attempt(attemptCtx)
 		cancel()
 		if err == nil {
+			c.noteContact()
 			return result, nil
 		}
-		return result, c.classifyFailure(ctx, bucket, normalizeError(err), &refreshed)
+		err = normalizeError(err)
+		if apiErr := (*APIError)(nil); errors.As(err, &apiErr) {
+			c.noteContact()
+		}
+		return result, c.classifyFailure(ctx, bucket, err, &refreshed)
 	},
 		backoff.WithBackOff(newFullJitterBackOff(c.retry)),
 		backoff.WithMaxTries(c.retry.MaxAttempts),
