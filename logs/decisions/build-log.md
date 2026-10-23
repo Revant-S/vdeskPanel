@@ -385,3 +385,9 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Commit size.** A folder delete's `Contents` lists every object it folded in, so an `rm -r` of tens of thousands of files makes one commit of a few hundred KB compressed. Fine for now; a pack or a cap would bound it.
 - **`TrashRef.PreviousDriveID`** is declared but never set or read.
 - **Passed without change:** editor save (rename over) and vim save racing a remote edit, move vs move, file delete vs newer move, move into a folder deleted elsewhere (both orders), folder rename while another device adds and edits inside, three devices editing one file, a device offline for 30+ commits with a folder rename in between, delete-and-recreate vs a remote edit.
+
+## Fix: log packing never ran (found by the crash-recovery agent)
+
+- `Journal.PackIfDue` was built and tested in step 5 but never called in production, so every device's `log/<device>/` folder only grew: one file per batch, forever. Each join and each catch-up after a long absence has to download all of them; A already has about 240.
+- **Fix.** The outgoing pipeline calls `PackIfDue` after each successful round of batches, in the same goroutine that records commits, so packing can never race a commit being written. When packing isn't due it costs one kv read. A failed pack only logs a warning; the single commit files stay, and it's retried after the next batch. Packing deletes singles only after the pack is uploaded and its MD5 verified (see "commits, packs and device records weren't checked against Drive's checksum"). Other devices that list a just-deleted single re-list and read the pack (R29), and fetch each pack once.
+- **Test.** With a pack threshold of 3, five synced batches leave a pack and fewer than five singles, and a fresh device still reads all five files. It fails without the call ("0 packs and 5 single commits"). `devicetest.Network.PackEvery` sets the threshold.
