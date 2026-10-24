@@ -32,6 +32,9 @@ func formatStatus(status api.Status, now time.Time) string {
 	if status.CorruptFiles > 0 {
 		fmt.Fprintf(&out, "%d files failed an integrity check and are not uploaded\n", status.CorruptFiles)
 	}
+	if status.RestoreFailed > 0 {
+		fmt.Fprintf(&out, "%d files could not be restored from Drive; vault verify --deep names them\n", status.RestoreFailed)
+	}
 	if status.KeysMaySwap {
 		fmt.Fprintln(&out, "Note: memory locking is limited; keys could reach swap")
 	}

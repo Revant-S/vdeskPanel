@@ -31,6 +31,12 @@ func TestStatusSaysOffline(t *testing.T) {
 	}
 }
 
+func TestStatusNamesRestoreFailures(t *testing.T) {
+	if got := formatStatus(api.Status{State: api.StateMounted, Online: true, RestoreFailed: 1}, time.Now()); !strings.Contains(got, "1 files could not be restored") {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestSettingsAssignments(t *testing.T) {
 	settings := api.Settings{Uploads: 4}
 	for _, arg := range []string{"uploads=8", "device_name=work laptop", "thumbnailer_deny_list=tracker-miner-fs-3,totem"} {

@@ -26,7 +26,9 @@ func (s *session) fillStatus(ctx context.Context, status *api.Status) {
 		}
 		return nil
 	})
-	if progress := s.restorer.Progress(); !progress.Complete {
+	progress := s.restorer.Progress()
+	status.RestoreFailed = progress.FilesFailed
+	if !progress.Complete {
 		status.Restore = &api.RestoreProgress{FilesDone: progress.FilesDone, FilesTotal: progress.FilesTotal,
 			BytesDone: progress.BytesDone, BytesTotal: progress.BytesTotal, Paused: progress.Paused}
 		status.State = api.StateRestoring
