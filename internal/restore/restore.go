@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"vault/internal/cache"
 	"vault/internal/index"
 	"vault/internal/model"
+	"vault/internal/slots"
 	"vault/internal/vaultfile"
 )
 
@@ -62,6 +61,7 @@ type Restorer struct {
 	mu          sync.Mutex
 	paused      bool
 	wanted      map[model.ObjectID]bool
+	keptInCloud map[model.ObjectID]bool
 	failures    map[model.ObjectID]failure
 	progress    Progress
 	cancelRound context.CancelFunc
@@ -139,24 +139,27 @@ func (r *Restorer) RunOnce(ctx context.Context) error {
 		return err
 	}
 	r.startProgress(plan)
-	var group errgroup.Group
-	group.SetLimit(r.config.Files)
+	limiter := slots.New(r.config.Files)
 	var mu sync.Mutex
 	var failed []error
 	for _, object := range plan.pending {
 		if !r.waitTurn(roundCtx) {
 			break
 		}
-		group.Go(func() error {
+		release, err := limiter.Acquire(roundCtx, object.Size)
+		if err != nil {
+			break
+		}
+		go func() {
+			defer release()
 			if err := r.restoreOne(roundCtx, object); err != nil {
 				mu.Lock()
 				failed = append(failed, err)
 				mu.Unlock()
 			}
-			return nil
-		})
+		}()
 	}
-	group.Wait()
+	limiter.Wait()
 	r.finishProgress()
 	return errors.Join(append(failed, ctx.Err())...)
 }

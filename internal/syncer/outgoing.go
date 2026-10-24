@@ -22,6 +22,7 @@ type LocalWorkspace interface {
 
 type Committer interface {
 	Record(ctx context.Context, commitID, driveID string, ops []journal.Op) (journal.Commit, error)
+	PackIfDue(ctx context.Context) error
 }
 
 type OutgoingDeps struct {
@@ -126,6 +127,11 @@ func (o *Outgoing) syncOnce(ctx context.Context, ignoreQuiet bool) (bool, error)
 		}
 	}
 	o.failures = 0
+	// Packing runs here, between batches, so it never races a commit being recorded. A failed
+	// pack leaves the single commit files in place and is retried after the next batch.
+	if err := o.Journal.PackIfDue(ctx); err != nil {
+		o.Logger.Warn("pack own log", "err", err)
+	}
 	return true, nil
 }
 

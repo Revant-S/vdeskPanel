@@ -24,3 +24,41 @@ func TestMountPathsBecomeVaultPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusSaysOffline(t *testing.T) {
+	if got := formatStatus(api.Status{State: api.StateMounted}, time.Now()); !strings.Contains(got, "Offline") {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestStatusNamesRestoreFailures(t *testing.T) {
+	if got := formatStatus(api.Status{State: api.StateMounted, Online: true, RestoreFailed: 1}, time.Now()); !strings.Contains(got, "1 files could not be restored") {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSettingsAssignments(t *testing.T) {
+	settings := api.Settings{Uploads: 4}
+	for _, arg := range []string{"uploads=8", "device_name=work laptop", "thumbnailer_deny_list=tracker-miner-fs-3,totem"} {
+		if err := applySetting(&settings, arg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if settings.Uploads != 8 || settings.DeviceName != "work laptop" || len(settings.ThumbnailerDenyList) != 2 {
+		t.Fatalf("settings = %+v", settings)
+	}
+	for _, bad := range []string{"uploads", "uploads=many", "colour=blue"} {
+		if applySetting(&settings, bad) == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestHistoryPrintsOpsAndNextPage(t *testing.T) {
+	var out strings.Builder
+	printHistory(&out, api.CommitPage{NextBefore: "c1", Commits: []api.CommitView{{DeviceName: "amber", Summary: "1 moved",
+		Ops: []api.OpView{{Kind: "move", From: "/a", To: "/b"}}}}}, true)
+	if !strings.Contains(out.String(), "/a -> /b") || !strings.Contains(out.String(), "--before c1") {
+		t.Fatalf("got %q", out.String())
+	}
+}

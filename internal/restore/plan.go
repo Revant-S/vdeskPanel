@@ -22,6 +22,7 @@ type roundPlan struct {
 
 type selection struct {
 	wanted      map[model.ObjectID]bool
+	keptInCloud map[model.ObjectID]bool
 	failedSince map[model.ObjectID]time.Time
 }
 
@@ -62,7 +63,8 @@ func (r *Restorer) planRound(ctx context.Context) (roundPlan, error) {
 
 // addToPlan counts object toward the round and reports whether it still needs a body.
 func (r *Restorer) addToPlan(plan *roundPlan, chosen selection, object index.Object) bool {
-	if !isLiveFile(object) || !(r.config.Mode == RestoreEverything || chosen.wanted[object.ID]) {
+	everything := r.config.Mode == RestoreEverything && !chosen.keptInCloud[object.ID]
+	if !isLiveFile(object) || !(everything || chosen.wanted[object.ID]) {
 		return false
 	}
 	if needsBody(object) && !hasRemoteBody(object) {
@@ -82,9 +84,13 @@ func (r *Restorer) addToPlan(plan *roundPlan, chosen selection, object index.Obj
 func (r *Restorer) currentSelection() selection {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	chosen := selection{wanted: make(map[model.ObjectID]bool, len(r.wanted)), failedSince: map[model.ObjectID]time.Time{}}
+	chosen := selection{wanted: make(map[model.ObjectID]bool, len(r.wanted)), keptInCloud: make(map[model.ObjectID]bool, len(r.keptInCloud)),
+		failedSince: map[model.ObjectID]time.Time{}}
 	for id := range r.wanted {
 		chosen.wanted[id] = true
+	}
+	for id := range r.keptInCloud {
+		chosen.keptInCloud[id] = true
 	}
 	for id, failed := range r.failures {
 		chosen.failedSince[id] = failed.at

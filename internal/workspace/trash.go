@@ -98,9 +98,9 @@ func (w *Workspace) persistRestore(ctx context.Context, record index.TrashRecord
 	stamp := w.Clock.Next()
 	return w.update(ctx, func(tx *index.Tx) error {
 		for _, row := range rows {
-			row.TrashID, row.DeleteVer = "", model.Stamp{}
+			row.TrashID, row.DeleteVer, row.PlacementVer = "", model.Stamp{}, stamp
 			if row.ID == record.ObjectID {
-				row.ParentID, row.EncName, row.PlacementVer = parentID, encName, stamp
+				row.ParentID, row.EncName = parentID, encName
 			}
 			if row.Kind == model.KindFile {
 				row.State = model.CloudOnly
@@ -151,24 +151,17 @@ func (w *Workspace) insertSubtree(tx *index.Tx, top model.ObjectID) error {
 	return nil
 }
 
-// PurgeTrash deletes a trash item for good. Locally it is gone at once; the Drive delete
-// and the log entry follow with the next batch.
+// PurgeTrash deletes a trash item for good. It leaves the trash view at once; the Drive
+// delete, the log entry and dropping its rows follow with the next batch. The rows wait for
+// Drive because another device may have restored the item first, and its restore needs them.
 func (w *Workspace) PurgeTrash(ctx context.Context, trashID string) (int64, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	record, rows, err := w.trashItem(ctx, trashID)
+	record, _, err := w.trashItem(ctx, trashID)
 	if err != nil {
 		return 0, err
 	}
 	err = w.update(ctx, func(tx *index.Tx) error {
-		for _, row := range rows {
-			if err := tx.DeleteSegmentBitmap(row.ID); err != nil {
-				return err
-			}
-			if err := tx.DeleteObject(row.ID); err != nil {
-				return err
-			}
-		}
 		if err := tx.DeleteTrash(record.ID); err != nil {
 			return err
 		}

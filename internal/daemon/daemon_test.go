@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,12 +70,7 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if err := os.WriteFile(notes, []byte("written through the mount"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.SyncNow(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if status, _ := a.Status(ctx); status.NotBackedUpFiles != 0 || status.LastBackedUp.IsZero() {
-		t.Fatalf("status after sync = %+v", status)
-	}
+	syncUntilBackedUp(t, a)
 	session, _ := a.currentSession()
 	collector := orphans.New(orphans.Deps{Remote: session.client, References: session.referencedDriveIDs, Now: time.Now},
 		orphans.Config{VaultID: session.vaultID, TreeFolderID: session.folders.Tree, TrashFolderID: session.folders.Trash})
@@ -105,6 +101,13 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 	if data, err := os.ReadFile(filepath.Join(b.config.MountPoint, "notes.txt")); err != nil || string(data) != "written through the mount" {
 		t.Fatalf("B read %q, %v", data, err)
 	}
+	assertFreeReclaims(t, b, "/notes.txt")
+	if err := b.Download(ctx, "/notes.txt"); err != nil {
+		t.Fatal(err)
+	}
+	waitForState(t, b, "/notes.txt", api.FileLocal)
+	assertFreeReclaims(t, b, "/notes.txt")
+
 	page, err := b.Commits(ctx, "", 50, "/notes.txt")
 	if err != nil || len(page.Commits) == 0 || page.Commits[0].DeviceName != "amber" || len(page.Devices) != 2 {
 		t.Fatalf("B history = %+v, %v", page, err)
@@ -123,4 +126,52 @@ func TestCreateLockUnlockAndJoin(t *testing.T) {
 			t.Fatalf("A's device list = %+v", devices)
 		}
 	}
+}
+
+// syncUntilBackedUp retries because FUSE delivers RELEASE after close returns, and a file is
+// queued for upload only once released.
+func syncUntilBackedUp(t *testing.T, d *Daemon) {
+	t.Helper()
+	ctx := context.Background()
+	var status api.Status
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if err := d.SyncNow(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if status, _ = d.Status(ctx); status.NotBackedUpFiles == 0 && !status.LastBackedUp.IsZero() {
+			return
+		}
+	}
+	t.Fatalf("status after sync = %+v", status)
+}
+
+// assertFreeReclaims frees a file that has a body on disk, whether partial from reads or
+// complete from a download, and expects the body gone and the file still listed.
+func assertFreeReclaims(t *testing.T, d *Daemon, vaultPath string) {
+	t.Helper()
+	session, _ := d.currentSession()
+	entry, _ := session.workspace.Tree().Resolve(vaultPath)
+	if !session.cache.HasBody(entry.ID) {
+		t.Fatalf("%s has no body to free", vaultPath)
+	}
+	if err := d.Free(context.Background(), vaultPath); err != nil {
+		t.Fatal(err)
+	}
+	if session.cache.HasBody(entry.ID) {
+		t.Fatalf("%s still has a body after Free", vaultPath)
+	}
+	waitForState(t, d, vaultPath, api.FileCloudOnly)
+}
+
+func waitForState(t *testing.T, d *Daemon, vaultPath string, want api.FileState) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		entries, _ := d.Tree(context.Background(), path.Dir(vaultPath))
+		for _, entry := range entries {
+			if entry.Path == vaultPath && entry.State == want {
+				return
+			}
+		}
+	}
+	t.Fatalf("%s never reached state %s", vaultPath, want)
 }

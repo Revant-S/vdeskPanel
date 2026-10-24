@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -51,7 +52,16 @@ func (a *remoteApply) renameForConflict(existing model.Entry, object index.Objec
 }
 
 func (a *remoteApply) logConflictRename(id, parentID model.ObjectID, from, to string, folder bool) error {
+	return a.logMove(id, parentID, from, parentID, to, folder)
+}
+
+// logMove records a move this device made to settle a conflict, stamped now so it wins.
+func (a *remoteApply) logMove(id, fromParentID model.ObjectID, from string, parentID model.ObjectID, to string, folder bool) error {
 	parentPath, err := a.ws.tree.PathOf(parentID)
+	if err != nil {
+		return err
+	}
+	fromParentPath, err := a.ws.tree.PathOf(fromParentID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +77,7 @@ func (a *remoteApply) logConflictRename(id, parentID model.ObjectID, from, to st
 		}
 	}
 	op := model.LocalOp{Kind: model.LocalMove, ObjectID: id, Folder: folder, ParentID: parentID, Name: to,
-		Path: path.Join(parentPath, to), FromParentID: parentID, FromName: from, FromPath: path.Join(parentPath, from)}
+		Path: path.Join(parentPath, to), FromParentID: fromParentID, FromName: from, FromPath: path.Join(fromParentPath, from)}
 	return appendOp(a.tx, op, stamp, a.ws.Now())
 }
 
@@ -99,14 +109,19 @@ func (a *remoteApply) deviceNameOf(device model.DeviceID) string {
 // supersedeLocal keeps a local version that lost a conflict: its body moves to a hidden
 // holder object that the next batch uploads straight into the trash. The body moves after
 // the transaction, since the cache writes to the index itself; effects run in order, so it
-// moves before the losing object's body is freed.
+// moves before the losing object's body is freed. The move is recorded in the transaction,
+// so a crash before it happens is finished at the next open.
 func (a *remoteApply) supersedeLocal(object index.Object, reason model.DeleteReason) error {
 	holder, err := a.newHolder(object)
 	if err != nil {
 		return err
 	}
+	if err := a.tx.SetKV(bodyMoveKeyPrefix+string(holder.ID), []byte(object.ID)); err != nil {
+		return err
+	}
 	a.after = append(a.after, func() {
-		if err := a.ws.Cache.Replace(a.ctx, holder.ID, a.ws.Cache.BodyPath(object.ID)); err != nil {
+		if err := a.ws.moveBody(a.ctx, object.ID, holder.ID); err != nil {
+			a.unmoved[object.ID] = true
 			a.ws.Logger.Error("keep superseded body", "oid", object.ID, "holder", holder.ID, "err", err)
 		}
 	})
@@ -153,4 +168,91 @@ func (a *remoteApply) queueSupersede(holder, object index.Object, reason model.D
 	objectPath, _ := a.ws.tree.PathOf(object.ID)
 	op := model.LocalOp{Kind: model.LocalSupersede, ObjectID: holder.ID, Path: objectPath, Reason: reason}
 	return appendOp(a.tx, op, holder.PlacementVer, a.ws.Now())
+}
+
+const bodyMoveKeyPrefix = "workspace/body-move/"
+
+// moveBody gives a superseded body to its holder and clears the recorded move.
+func (w *Workspace) moveBody(ctx context.Context, from, to model.ObjectID) error {
+	if err := w.Cache.Replace(ctx, to, w.Cache.BodyPath(from)); err != nil {
+		return err
+	}
+	return w.update(ctx, func(tx *index.Tx) error { return tx.DeleteKV(bodyMoveKeyPrefix + string(to)) })
+}
+
+// finishBodyMoves completes superseded-body moves a crash interrupted. Until a move is done
+// the losing edit still sits under the replaced file, where opening that file would
+// overwrite it with the remote version.
+func (w *Workspace) finishBodyMoves(ctx context.Context) error {
+	var moves map[string][]byte
+	err := w.Index.View(ctx, func(tx *index.Tx) error {
+		var err error
+		moves, err = tx.KVWithPrefix(bodyMoveKeyPrefix)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	for key, from := range moves {
+		holder, source := model.ObjectID(strings.TrimPrefix(key, bodyMoveKeyPrefix)), model.ObjectID(from)
+		switch {
+		case !w.Cache.HasBody(holder) && w.Cache.HasBody(source):
+			err = w.moveBody(ctx, source, holder)
+		case !w.Cache.HasBody(holder):
+			w.Logger.Error("superseded body is gone", "oid", source, "holder", holder)
+			fallthrough
+		default:
+			err = w.update(ctx, func(tx *index.Tx) error { return tx.DeleteKV(key) })
+		}
+		if err != nil {
+			return fmt.Errorf("finish superseded body move: %w", err)
+		}
+	}
+	return nil
+}
+
+// breakMoveCycle settles two concurrent moves that would put a folder inside itself (row 9).
+// If the incoming move is older it loses and is skipped; its author moves back when it sees
+// the newer one. If it is newer, the folder the older move put inside the moving object goes
+// back to the root, and that move back is logged for everyone.
+func (a *remoteApply) breakMoveCycle(id, newParentID model.ObjectID, version model.Stamp) (bool, error) {
+	var inside model.ObjectID
+	for current := newParentID; current != id; {
+		if current == model.RootID {
+			return true, nil
+		}
+		entry, ok := a.ws.tree.Get(current)
+		if !ok {
+			return true, nil
+		}
+		inside, current = current, entry.ParentID
+	}
+	if inside == "" {
+		return false, nil
+	}
+	entry, _ := a.ws.tree.Get(inside)
+	object, found, err := a.load(inside)
+	if err != nil || !found {
+		return false, err
+	}
+	if !version.After(object.PlacementVer) {
+		return false, nil
+	}
+	name := entry.Name
+	if _, taken := a.ws.tree.Lookup(model.RootID, name); taken {
+		name = a.conflictName(model.RootID, name, a.ws.config.DeviceName)
+	}
+	if object.EncName, err = a.ws.Names.EncryptName(inside, name); err != nil {
+		return false, err
+	}
+	if err := a.ws.tree.Move(inside, model.RootID, name); err != nil {
+		return false, err
+	}
+	object.ParentID = model.RootID
+	if err := a.tx.PutObject(object); err != nil {
+		return false, err
+	}
+	a.invalidateEntry(entry.ParentID, entry.Name)
+	a.invalidateEntry(model.RootID, name)
+	return true, a.logMove(inside, entry.ParentID, entry.Name, model.RootID, name, entry.IsFolder())
 }

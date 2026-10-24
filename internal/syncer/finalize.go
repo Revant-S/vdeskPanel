@@ -111,6 +111,9 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 		}
 		return tx.DeleteObject(op.ObjectID)
 	}
+	if op.Kind == NetPurge {
+		return forgetPurged(tx, op)
+	}
 	object, err := tx.Object(op.ObjectID)
 	if errors.Is(err, index.ErrNotFound) || op.Skipped {
 		return nil
@@ -124,12 +127,69 @@ func (o *Outgoing) recordResult(tx *index.Tx, plan *BatchPlan, op BatchOp, trash
 	case op.Kind == NetCreate, op.Kind == NetModify:
 		applyContentResult(&object, op.Result)
 	case op.Kind == NetDelete:
+		// settleLocalBody freed the body, so a trashed file lives only on Drive now.
+		if object.Kind == model.KindFile {
+			object.State = model.CloudOnly
+		}
 		return o.recordTrash(tx, op, object, trashIDs)
 	}
 	if object.State == model.Dirty && o.isClean(tx, plan.ID, op.ObjectID) {
 		object.State = model.Local
 	}
 	return tx.PutObject(object)
+}
+
+// forgetPurged drops the rows a purge kept until Drive confirmed it. Rows another device
+// restored meanwhile no longer carry the trash ID, so they are left alone, as is everything
+// when the restore is still on its way here.
+func forgetPurged(tx *index.Tx, op BatchOp) error {
+	if op.RestoredElsewhere {
+		return nil
+	}
+	rows, err := tx.ObjectsWithTrashID(op.TrashItem)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := tx.DeleteSegmentBitmap(row.ID); err != nil {
+			return err
+		}
+		if err := tx.DeleteObject(row.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// sweepIntoTrash gives a deleted folder's trash entry everything still under it without one:
+// objects another device moved, created or restored into the folder after this device
+// deleted it locally but before the delete synced. The folder's Drive copy took them along,
+// so the entry must too, or restoring it here would leave them behind. Rows already in
+// another trash entry stay where they are.
+func sweepIntoTrash(tx *index.Tx, folder index.Object, trashID string) error {
+	queue := []model.ObjectID{folder.ID}
+	for len(queue) > 0 {
+		children, err := tx.ChildrenOf(queue[0])
+		if err != nil {
+			return err
+		}
+		queue = queue[1:]
+		for _, child := range children {
+			if child.TrashID == "" {
+				child.TrashID = trashID
+				if child.DeleteVer.IsZero() {
+					child.DeleteVer = folder.DeleteVer
+				}
+				if err := tx.PutObject(child); err != nil {
+					return err
+				}
+			}
+			if child.TrashID == trashID && child.Kind == model.KindFolder {
+				queue = append(queue, child.ID)
+			}
+		}
+	}
+	return nil
 }
 
 func applyContentResult(object *index.Object, result ContentResult) {
@@ -147,6 +207,11 @@ func (o *Outgoing) recordTrash(tx *index.Tx, op BatchOp, object index.Object, tr
 	object.TrashID = op.TrashID
 	if err := tx.PutObject(object); err != nil {
 		return err
+	}
+	if op.Folder {
+		if err := sweepIntoTrash(tx, object, op.TrashID); err != nil {
+			return err
+		}
 	}
 	return tx.PutTrash(index.TrashRecord{ID: op.TrashID, ObjectID: op.ObjectID, OriginalPath: op.Path, DeletedAt: o.Now(),
 		Device: o.config.Device, Reason: string(op.Reason), Size: object.Size, FileCount: max(op.FileCount, boolCount(!op.Folder)),

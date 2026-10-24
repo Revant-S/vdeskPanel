@@ -32,7 +32,8 @@ func newRootCommand(c *cli) *cobra.Command {
 		PersistentPreRunE: func(*cobra.Command, []string) error { return c.connect() }}
 	root.PersistentFlags().StringVar(&c.home, "home", "", "talk to the instance kept in this directory")
 	root.AddCommand(c.statusCommand(), c.signInCommand(), c.createCommand(), c.joinCommand(), c.unlockCommand(), c.lockCommand(),
-		c.syncCommand(), c.verifyCommand(), c.trashCommand(), c.downloadCommand(), c.freeCommand(), c.restoreCommand())
+		c.syncCommand(), c.verifyCommand(), c.trashCommand(), c.downloadCommand(), c.freeCommand(), c.restoreCommand(),
+		c.historyCommand(), c.devicesCommand(), c.settingsCommand(), c.signOutCommand())
 	return root
 }
 

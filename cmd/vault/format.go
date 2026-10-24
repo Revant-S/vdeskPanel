@@ -19,6 +19,11 @@ func formatStatus(status api.Status, now time.Time) string {
 	if status.State == api.StateMounted || status.State == api.StateRestoring {
 		fmt.Fprintf(&out, "Mounted at %s\n", status.MountPoint)
 		fmt.Fprintln(&out, backupLine(status, now))
+		if !status.Online {
+			fmt.Fprintln(&out, "Offline: changes upload when Drive is reachable again")
+		} else if status.BytesPerSecond > 0 {
+			fmt.Fprintf(&out, "Transferring %s/s\n", api.FormatBytes(status.BytesPerSecond))
+		}
 	}
 	if r := status.Restore; r != nil {
 		fmt.Fprintf(&out, "Restoring: %d of %d files, %s of %s%s\n", r.FilesDone, r.FilesTotal, api.FormatBytes(r.BytesDone),
@@ -26,6 +31,9 @@ func formatStatus(status api.Status, now time.Time) string {
 	}
 	if status.CorruptFiles > 0 {
 		fmt.Fprintf(&out, "%d files failed an integrity check and are not uploaded\n", status.CorruptFiles)
+	}
+	if status.RestoreFailed > 0 {
+		fmt.Fprintf(&out, "%d files could not be restored from Drive; vault verify --deep names them\n", status.RestoreFailed)
 	}
 	if status.KeysMaySwap {
 		fmt.Fprintln(&out, "Note: memory locking is limited; keys could reach swap")

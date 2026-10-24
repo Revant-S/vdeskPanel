@@ -32,6 +32,8 @@ type Network struct {
 	VaultID string
 	Folders vaultlayout.Folders
 	Logger  *slog.Logger
+	// PackEvery overrides how many single commits a device writes before packing them.
+	PackEvery int
 }
 
 func NewNetwork(t *testing.T, options ...drivefake.Option) *Network {
@@ -137,7 +139,8 @@ func (d *Device) startSync(clock *journal.Clock) {
 		t.Fatal(err)
 	}
 	d.Journal = journal.New(journal.Deps{Remote: &remote.Log{Client: d.Client}, Store: d.Index, Keyring: n.Keyring, Codec: d.codec,
-		Clock: clock, Logger: n.Logger}, journal.Config{VaultID: n.VaultID, Device: d.ID, DeviceName: string(d.ID), OwnLogFolderID: d.LogFolder})
+		Clock: clock, Logger: n.Logger}, journal.Config{VaultID: n.VaultID, Device: d.ID, DeviceName: string(d.ID), OwnLogFolderID: d.LogFolder,
+		PackEvery: n.PackEvery})
 	d.Outgoing = syncer.NewOutgoing(syncer.OutgoingDeps{Index: d.Index, Cache: d.Cache, Workspace: d.Workspace,
 		Remote: &remote.Tree{Client: d.Client}, Journal: d.Journal, Keyring: n.Keyring, Random: rand.Reader, Now: time.Now, Logger: n.Logger},
 		syncer.OutgoingConfig{VaultID: n.VaultID, Device: d.ID, TreeFolderID: n.Folders.Tree, TrashFolderID: n.Folders.Trash,

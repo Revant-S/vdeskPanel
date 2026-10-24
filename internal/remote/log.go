@@ -3,7 +3,10 @@ package remote
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"vault/internal/devices"
 	"vault/internal/drive"
@@ -29,13 +32,29 @@ func (l *Log) GenerateID(ctx context.Context) (string, error) {
 	return ids[0], nil
 }
 
+// CreateFile uploads a commit or pack and checks Drive stored exactly those bytes: packing
+// deletes the single commits afterwards, so a damaged pack would lose history for good.
 func (l *Log) CreateFile(ctx context.Context, file journal.LogFile) (bool, error) {
-	_, err := l.Client.CreateSmallFile(ctx, drive.NewFile{ID: file.DriveID, Name: file.Name, ParentID: file.FolderID,
+	created, err := l.Client.CreateSmallFile(ctx, drive.NewFile{ID: file.DriveID, Name: file.Name, ParentID: file.FolderID,
 		Properties: file.Properties}, bytes.NewReader(file.Data), int64(len(file.Data)))
 	if errors.Is(err, drive.ErrAlreadyExists) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return true, checkStored(ctx, l.Client, created, file.Data)
+}
+
+func checkStored(ctx context.Context, client *drive.Client, created model.RemoteFile, sent []byte) error {
+	sum := md5.Sum(sent)
+	if created.MD5 == hex.EncodeToString(sum[:]) {
+		return nil
+	}
+	if err := client.Delete(ctx, created.ID); err != nil {
+		return fmt.Errorf("drive stored %s wrongly, and removing it failed: %w", created.ID, err)
+	}
+	return fmt.Errorf("drive stored %s with checksum %q, not the bytes sent; removed it", created.ID, created.MD5)
 }
 
 func (l *Log) Exists(ctx context.Context, driveID string) (bool, error) {
@@ -70,7 +89,10 @@ type Devices struct {
 }
 
 func (d *Devices) Upload(ctx context.Context, folderID, name string, properties map[string]string, data []byte) error {
-	_, err := d.Client.CreateSmallFile(ctx, drive.NewFile{Name: name, ParentID: folderID, Properties: properties},
+	created, err := d.Client.CreateSmallFile(ctx, drive.NewFile{Name: name, ParentID: folderID, Properties: properties},
 		bytes.NewReader(data), int64(len(data)))
-	return err
+	if err != nil {
+		return err
+	}
+	return checkStored(ctx, d.Client, created, data)
 }

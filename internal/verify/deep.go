@@ -10,33 +10,43 @@ import (
 	"os"
 	"sync"
 
-	"golang.org/x/sync/errgroup"
-
 	"vault/internal/crypto"
+	"vault/internal/slots"
 	"vault/internal/vaultfile"
 )
 
 func (v *Verifier) checkBodies(ctx context.Context, checks []*bodyCheck, report *Report) error {
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(v.config.Downloads)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	limiter := slots.New(v.config.Downloads)
 	var mu sync.Mutex
+	var firstErr error
 	for _, check := range checks {
-		group.Go(func() error {
-			kind, downloaded, err := v.checkBody(groupCtx, check)
-			if err != nil {
-				return err
-			}
+		release, err := limiter.Acquire(ctx, check.size)
+		if err != nil {
+			break
+		}
+		go func() {
+			defer release()
+			kind, downloaded, err := v.checkBody(ctx, check)
 			mu.Lock()
 			defer mu.Unlock()
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+					cancel()
+				}
+				return
+			}
 			report.BodiesVerified++
 			report.BytesDownloaded += downloaded
 			if kind != "" {
 				report.Problems = append(report.Problems, check.problem(kind))
 			}
-			return nil
-		})
+		}()
 	}
-	return group.Wait()
+	limiter.Wait()
+	return firstErr
 }
 
 // checkBody downloads one ciphertext into a temporary file, which only ever holds data that

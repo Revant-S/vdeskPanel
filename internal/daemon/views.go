@@ -26,7 +26,9 @@ func (s *session) fillStatus(ctx context.Context, status *api.Status) {
 		}
 		return nil
 	})
-	if progress := s.restorer.Progress(); !progress.Complete {
+	progress := s.restorer.Progress()
+	status.RestoreFailed = progress.FilesFailed
+	if !progress.Complete {
 		status.Restore = &api.RestoreProgress{FilesDone: progress.FilesDone, FilesTotal: progress.FilesTotal,
 			BytesDone: progress.BytesDone, BytesTotal: progress.BytesTotal, Paused: progress.Paused}
 		status.State = api.StateRestoring
@@ -156,7 +158,7 @@ func touches(view api.CommitView, filter string) bool {
 }
 
 // Devices lists every device with a record on Drive or a commit in the log. A record's name
-// and first-seen time win over the log's, since the record is updated on rename.
+// wins over the log's, since the record is updated on rename; first seen is the earlier one.
 func (d *Daemon) Devices(ctx context.Context) ([]api.DeviceView, error) {
 	s, err := d.currentSession()
 	if err != nil {
@@ -188,7 +190,11 @@ func (d *Daemon) Devices(ctx context.Context) ([]api.DeviceView, error) {
 			device = &api.DeviceView{ID: string(id)}
 			byID[device.ID] = device
 		}
-		device.Name, device.FirstSeen, device.Retired = record.Name, record.FirstSeen, record.Retired
+		device.Name, device.Retired = record.Name, record.Retired
+		// A record can be younger than the device's first commit: records came after the log.
+		if device.FirstSeen.IsZero() || record.FirstSeen.Before(device.FirstSeen) {
+			device.FirstSeen = record.FirstSeen
+		}
 	}
 	var out []api.DeviceView
 	for _, device := range byID {

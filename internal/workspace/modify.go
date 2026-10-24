@@ -82,6 +82,12 @@ func (w *Workspace) recoverInterruptedWrites(ctx context.Context) error {
 		return err
 	}
 	for _, object := range dirty {
+		if object.Kind == model.KindFile && object.TrashID != "" {
+			if err := w.settleTrashedDirty(ctx, object); err != nil {
+				return err
+			}
+			continue
+		}
 		if object.Kind == model.KindFolder || object.LocalOnly || !isLive(object) {
 			continue
 		}
@@ -92,7 +98,27 @@ func (w *Workspace) recoverInterruptedWrites(ctx context.Context) error {
 	return nil
 }
 
+// settleTrashedDirty repairs trash entries that older builds left Dirty after uploading them,
+// which kept them in the not-backed-up count forever and so held back every restore.
+func (w *Workspace) settleTrashedDirty(ctx context.Context, object index.Object) error {
+	return w.Index.Update(ctx, func(tx *index.Tx) error {
+		ops, err := tx.OpsForObject(object.ID)
+		if err != nil || len(ops) > 0 || object.DriveID == "" {
+			return err
+		}
+		object.State = model.CloudOnly
+		return tx.PutObject(object)
+	})
+}
+
 func (w *Workspace) recoverDirtyFile(ctx context.Context, object index.Object) error {
+	// A failed repair must never be what keeps the vault from opening; the body stays as it
+	// was, and reads report any damage as before.
+	if repaired, err := w.Cache.RecoverInterruptedRewrite(object.ID); err != nil {
+		w.Logger.Warn("repair a body whose rewrite a crash cut short", "oid", object.ID, "err", err)
+	} else if repaired {
+		w.Logger.Warn("repaired a body whose rewrite a crash cut short", "oid", object.ID)
+	}
 	size, err := w.bodySize(ctx, object)
 	if err != nil {
 		return err

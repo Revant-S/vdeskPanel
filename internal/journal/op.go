@@ -45,6 +45,15 @@ type Op struct {
 	Trash           *TrashRef      `json:"trash,omitempty"`
 	Reason          string         `json:"reason,omitempty"`
 	FileCount       int            `json:"files,omitempty"`
+	// Contents lists what a folder delete took with it and where, so a receiver also deletes
+	// those it has meanwhile moved out of the folder, and puts them back for a restore.
+	Contents []Placement `json:"contents,omitempty"`
+}
+
+type Placement struct {
+	ObjectID model.ObjectID `json:"oid"`
+	ParentID model.ObjectID `json:"parent"`
+	EncName  string         `json:"encName"`
 }
 
 type TrashRef struct {
@@ -60,4 +69,8 @@ type TrashRef struct {
 	Folder          bool           `json:"folder,omitempty"`
 	ObjectID        model.ObjectID `json:"oid,omitempty"`
 	ContentMAC      []byte         `json:"mac,omitempty"`
+	// BodyID and BodyMD5 are set when the trash holds a version uploaded with the delete,
+	// which no other device has seen yet.
+	BodyID  []byte `json:"bodyId,omitempty"`
+	BodyMD5 string `json:"md5,omitempty"`
 }

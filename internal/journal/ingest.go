@@ -2,8 +2,10 @@ package journal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -13,7 +15,10 @@ import (
 	"vault/internal/model"
 )
 
-const ingestParallelism = 8
+const (
+	ingestParallelism = 8
+	ingestedPacksKey  = "journal.ingested_packs"
+)
 
 // ErrLogFileGone means a listed log file was deleted before it could be read, which happens
 // when its device packed it in the meantime. The caller should list that folder again.
@@ -27,6 +32,7 @@ func (j *Journal) Ingest(ctx context.Context, files []model.RemoteFile, notFound
 	}
 	var mu sync.Mutex
 	var fetched []fetchedCommit
+	var packs []string
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(ingestParallelism)
 	for _, file := range wanted {
@@ -35,16 +41,24 @@ func (j *Journal) Ingest(ctx context.Context, files []model.RemoteFile, notFound
 			if err != nil && notFound != nil && notFound(err) {
 				return fmt.Errorf("%s: %w", file.Name, ErrLogFileGone)
 			}
+			if err != nil {
+				return err
+			}
 			mu.Lock()
 			fetched = append(fetched, commits...)
+			if strings.HasSuffix(file.Name, packSuffix) {
+				packs = append(packs, file.ID)
+			}
 			mu.Unlock()
-			return err
+			return nil
 		})
 	}
-	if err := group.Wait(); err != nil {
-		return nil, err
-	}
-	return j.storeRemoteCommits(ctx, fetched)
+	fetchErr := group.Wait()
+	// What arrived is kept even when another file failed or the catch-up deadline hit: storing
+	// is idempotent by commit ID and nothing is applied until a poll completes, so the next
+	// poll only fetches what is still missing.
+	stored, err := j.storeRemoteCommits(context.WithoutCancel(ctx), fetched, packs)
+	return stored, errors.Join(fetchErr, err)
 }
 
 type fetchedCommit struct {
@@ -55,9 +69,15 @@ type fetchedCommit struct {
 func (j *Journal) unseenLogFiles(ctx context.Context, files []model.RemoteFile) ([]model.RemoteFile, error) {
 	var wanted []model.RemoteFile
 	err := j.Store.View(ctx, func(tx *index.Tx) error {
+		ingested, err := ingestedPacks(tx)
+		if err != nil {
+			return err
+		}
 		for _, file := range files {
 			if strings.HasSuffix(file.Name, packSuffix) {
-				wanted = append(wanted, file)
+				if !ingested[file.ID] {
+					wanted = append(wanted, file)
+				}
 				continue
 			}
 			if !strings.HasSuffix(file.Name, commitSuffix) {
@@ -107,7 +127,10 @@ func (j *Journal) unpack(fileName string, data []byte) ([]fetchedCommit, error) 
 	return out, err
 }
 
-func (j *Journal) storeRemoteCommits(ctx context.Context, fetched []fetchedCommit) ([]Commit, error) {
+func (j *Journal) storeRemoteCommits(ctx context.Context, fetched []fetchedCommit, packs []string) ([]Commit, error) {
+	if len(fetched) == 0 && len(packs) == 0 {
+		return nil, nil
+	}
 	var stored []Commit
 	err := j.Store.Update(ctx, func(tx *index.Tx) error {
 		for _, f := range fetched {
@@ -124,10 +147,52 @@ func (j *Journal) storeRemoteCommits(ctx context.Context, fetched []fetchedCommi
 			}
 			stored = append(stored, f.commit)
 		}
-		return nil
+		return rememberPacks(tx, packs)
 	})
 	for _, commit := range stored {
 		j.Clock.Observe(commit.Clock)
 	}
 	return stored, err
+}
+
+// Packs never change once written, so a pack ingested once is not downloaded again.
+func ingestedPacks(tx *index.Tx) (map[string]bool, error) {
+	seen := map[string]bool{}
+	data, found, err := tx.KV(ingestedPacksKey)
+	if err != nil || !found {
+		return seen, err
+	}
+	var ids []string
+	if err := json.Unmarshal(data, &ids); err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		seen[id] = true
+	}
+	return seen, nil
+}
+
+func rememberPacks(tx *index.Tx, packs []string) error {
+	if len(packs) == 0 {
+		return nil
+	}
+	seen, err := ingestedPacks(tx)
+	if err != nil {
+		return err
+	}
+	ids := make([]string, 0, len(seen)+len(packs))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	for _, id := range packs {
+		if !seen[id] {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	data, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	return tx.SetKV(ingestedPacksKey, data)
 }

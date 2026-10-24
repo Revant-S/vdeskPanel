@@ -63,6 +63,11 @@ func (w *Workspace) Open(ctx context.Context, ino model.Ino, writable, truncate 
 }
 
 func (w *Workspace) openCacheEntry(ctx context.Context, object index.Object, writable bool) (*cache.Entry, error) {
+	if open := w.handles.liveEntry(object.ID); open != nil {
+		if entry, ok := w.Cache.Share(open, writable); ok {
+			return entry, nil
+		}
+	}
 	var bodyID vaultfile.BodyID
 	copy(bodyID[:], object.BodyID)
 	open := w.Cache.Open
@@ -127,10 +132,22 @@ func (h *handle) truncate(ctx context.Context, size int64) error {
 	} else if err := h.markWritten(ctx); err != nil {
 		return err
 	}
+	id := h.ws.handles.objectOf(h)
+	shrinking := size > 0 && size < h.entry.Size()
+	if shrinking {
+		if err := h.ws.recordShrink(ctx, id, size); err != nil {
+			return err
+		}
+	}
 	if err := h.entry.Truncate(ctx, size); err != nil {
 		return cacheError(err)
 	}
-	h.ws.noteLocalWrite(h.ws.handles.objectOf(h), size)
+	if shrinking {
+		if err := h.ws.clearShrink(ctx, id); err != nil {
+			return err
+		}
+	}
+	h.ws.noteLocalWrite(id, size)
 	return nil
 }
 

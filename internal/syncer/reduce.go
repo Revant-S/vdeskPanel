@@ -97,8 +97,8 @@ func groupByObject(raw []index.PendingOp) ([]*objectOps, error) {
 }
 
 func reduceObject(group *objectOps, synced bool) []NetOp {
-	if kind := group.ops[len(group.ops)-1].Kind; kind == model.LocalRestore || kind == model.LocalPurge {
-		return trashNetOps(group)
+	if last := lastTrashOp(group.ops); last >= 0 {
+		return trashNetOps(&objectOps{id: group.id, ops: group.ops[:last+1], raw: group.raw[:last+1]})
 	}
 	var created, modified, attr, moved, deleted, absorbed, superseded bool
 	var firstFrom string
@@ -234,7 +234,9 @@ func coalesceFolderDeletes(net []NetOp) []NetOp {
 		movedOut[i] = true
 	}
 	for i := range net {
-		if net[i].Kind != NetDelete && net[i].Kind != NetDropLocal {
+		// A file edited since its last sync keeps its own trash entry: the folder's entry
+		// only holds what is already on Drive, so the edit would be lost inside it.
+		if net[i].Kind != NetDelete && net[i].Kind != NetDropLocal || net[i].TrashLatest {
 			continue
 		}
 		for _, f := range folders {
@@ -265,6 +267,18 @@ func withoutEmpty(net []NetOp) []NetOp {
 		}
 	}
 	return out
+}
+
+// lastTrashOp finds the last restore or purge. Ops after it, such as a rename or an edit of
+// the restored object, wait for the next batch: they apply to the object once it is live
+// on Drive and in the log, and reducing them with the restore would drop the restore.
+func lastTrashOp(ops []model.LocalOp) int {
+	for i := len(ops) - 1; i >= 0; i-- {
+		if ops[i].Kind == model.LocalRestore || ops[i].Kind == model.LocalPurge {
+			return i
+		}
+	}
+	return -1
 }
 
 // trashNetOps keeps restores and purges as they are: each one is a single Drive call on a

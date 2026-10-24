@@ -2,6 +2,7 @@ package orphans
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -70,5 +71,21 @@ func TestCollectDeletesOnlyOldUnreferencedFilesOfThisVault(t *testing.T) {
 		if !want[id] {
 			t.Fatalf("deleted %s", id)
 		}
+	}
+}
+
+func TestCollectRefusesWhenMostFilesLookOrphaned(t *testing.T) {
+	now := time.Now()
+	remote := &memoryRemote{}
+	for i := range 60 {
+		remote.files = append(remote.files, model.RemoteFile{ID: fmt.Sprint(i), Parents: []string{"tree"},
+			CreatedTime: now.Add(-365 * 24 * time.Hour), Properties: map[string]string{"vid": "v"}})
+	}
+	empty := func(context.Context) (map[string]bool, error) { return map[string]bool{}, nil }
+	collector := New(Deps{Remote: remote, References: empty, Now: func() time.Time { return now }},
+		Config{VaultID: "v", TreeFolderID: "tree", TrashFolderID: "trash", MinAge: 30 * 24 * time.Hour})
+	result, err := collector.Collect(context.Background())
+	if err != nil || !result.Refused || len(remote.deleted) != 0 {
+		t.Fatalf("result %+v, deleted %v, err %v", result, remote.deleted, err)
 	}
 }

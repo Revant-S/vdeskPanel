@@ -25,10 +25,12 @@ type fakeLogRemote struct {
 	files       map[string]LogFile
 	nextID      int
 	failCreates int
+	downloads   map[string]int
+	failing     map[string]bool
 }
 
 func newFakeLogRemote() *fakeLogRemote {
-	return &fakeLogRemote{files: map[string]LogFile{}}
+	return &fakeLogRemote{files: map[string]LogFile{}, downloads: map[string]int{}, failing: map[string]bool{}}
 }
 
 func (f *fakeLogRemote) GenerateID(context.Context) (string, error) {
@@ -63,6 +65,10 @@ func (f *fakeLogRemote) Exists(_ context.Context, driveID string) (bool, error) 
 func (f *fakeLogRemote) Download(_ context.Context, driveID string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.downloads[driveID]++
+	if f.failing[driveID] {
+		return nil, errors.New("connection reset")
+	}
 	file, ok := f.files[driveID]
 	if !ok {
 		return nil, errGone

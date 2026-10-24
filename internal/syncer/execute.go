@@ -133,13 +133,22 @@ func (o *Outgoing) restoreRemote(ctx context.Context, plan *BatchPlan, op *Batch
 }
 
 // purgeRemote deletes a trash item. If another device purged it first, nothing is logged,
-// so a race between devices leaves one purge in the history, not several.
+// so a race between devices leaves one purge in the history, not several. If another device
+// restored it meanwhile, it is live again and must survive, so that is skipped too. So is a
+// file restored and then trashed again: it sits in trash/ under a newer trash item's name.
 func (o *Outgoing) purgeRemote(ctx context.Context, op *BatchOp) error {
-	if _, err := o.Remote.Get(ctx, op.RemoteID); errors.Is(err, ErrRemoteNotFound) {
+	current, err := o.Remote.Get(ctx, op.RemoteID)
+	if errors.Is(err, ErrRemoteNotFound) {
 		op.Skipped = true
 		return nil
-	} else if err != nil {
+	}
+	if err != nil {
 		return err
+	}
+	if !slices.Contains(current.Parents, o.config.TrashFolderID) || current.Name != op.TrashItem {
+		o.Logger.Warn("not purging a trash item another device restored or trashed again", "oid", op.ObjectID)
+		op.Skipped, op.RestoredElsewhere = true, true
+		return nil
 	}
 	return ignoreNotFound(o.Remote.Delete(ctx, op.RemoteID))
 }
