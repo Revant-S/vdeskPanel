@@ -465,3 +465,10 @@ Ran `bin/vault-panel --home ~/vault-b` and drove it through XTest with screensho
 - **Trash table too wide.** At the window's real width, seven columns pushed the dates and buttons off screen. Now four columns, each two lines: item over original path, reason over device, deleted on over expiry, then the actions. Every field from spec §13 is still shown; long text ends in an ellipsis with the full text in a tooltip. Empty folders read `(empty)`.
 - **Expanded commits drew a stray line.** The stretched SVG gap was replaced by one 2 px div per lane, which stretches with the list.
 - **Confirm is an overlay div, not `<dialog>`.** Switched while chasing a missed click (the cause was my test's coordinates, not `<dialog>`); kept because it's verified working in WebKitGTK and needs no top-layer support.
+
+## Panel launcher and taskbar icon
+
+- `make install-panel` builds the panel and installs `~/.local/bin/vault-panel`, the icon (`hicolor/256x256/apps/vault-panel.png`) and `~/.local/share/applications/vault-panel.desktop`. Launching from the app grid then shows the Vault icon in the taskbar and it can be pinned.
+- **Matching the window to its icon.** On Wayland, GNOME matches a window to a `.desktop` file by app ID, which GTK takes from `g_set_prgname`. Wails sets that from `linux.Options.ProgramName`, so it is `vault-panel`, the same as the desktop file's name and `StartupWMClass` (used on X11). The same PNG is embedded as the window icon.
+- The icon is a 256 px PNG (vault-door dial on the panel's accent blue) in `panel/icon.png`, so `go:embed` can reach it. It's a PNG because the machine has no SVG rasterizer.
+- The desktop entry starts instance A (no `--home`). B is started from a terminal: `vault-panel --home ~/vault-b`.

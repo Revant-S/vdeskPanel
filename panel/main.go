@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"vault/internal/api"
 	"vault/internal/config"
@@ -17,6 +18,9 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed icon.png
+var icon []byte
 
 func main() {
 	home := flag.String("home", "", "talk to the instance kept in this directory")
@@ -36,6 +40,8 @@ func main() {
 		AssetServer: &assetserver.Options{Assets: assets},
 		OnStartup:   app.startup,
 		Bind:        []any{app},
+		// ProgramName is the Wayland app ID; it must match vault-panel.desktop for the taskbar icon.
+		Linux: &linux.Options{Icon: icon, ProgramName: "vault-panel"},
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "vault-panel:", err)
