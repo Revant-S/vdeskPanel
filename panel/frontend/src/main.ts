@@ -30,7 +30,8 @@ function buildScreen(kind: string, status: api.Status): HTMLElement {
     case "needs-signin":
       return createSetupScreen("This device is not signed in to Google. Sign in from a terminal:", "vault signin");
     case "needs-setup":
-      return status.vaultExists
+      // The daemon names the next step in message: "join" or "create".
+      return status.message === "join"
         ? createSetupScreen("This Google account has a vault. Join it from a terminal:", "vault join")
         : createSetupScreen("This Google account has no vault yet. Create one from a terminal:", "vault create");
     case "locked":

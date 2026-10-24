@@ -452,3 +452,8 @@ Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed au
 - One form over `api.Settings`: mount point, device name, worker counts, polling intervals, trash retention days, and the thumbnailer deny list (one per line). Save sends the whole form; the daemon's `config.Validate` is the only validation beyond `min=1` on the number inputs, so the panel and `vault settings set` can't disagree about what's allowed.
 - A note says most changes apply at the next unlock, as the CLI's help does. **Sign out of Google** asks first, with the CLI's wording.
 - It opens from the header's settings icon, not the left rail, per spec §13.
+
+## Step 9: status banners
+
+- Under the header, one line for each status item that asks the owner to act: files that failed an integrity check, files that couldn't be restored (pointing to `vault verify --deep`), a paused restore, and files not backed up while offline. Wording follows `vault status`. "Keys could reach swap" stays CLI-only; it's a fixed property of the machine, not something to act on from the panel.
+- **Fix in the setup screen.** `vaultExists` is false in every setup state, so the panel reads `message` (`join` / `create`) instead to choose which command to suggest.
