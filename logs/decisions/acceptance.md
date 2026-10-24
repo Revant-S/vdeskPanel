@@ -30,3 +30,10 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 |---|---|
 | Free up space returns the disk space and files stay browsable | **Pass** (after two fixes, see build-log). On B: a 188 MB file downloaded, then freed; cache 196 MB → 16 MB, no regrowth after 15 s, file still listed and readable on demand. The spec's 10 GB folder is a scaled-up version of the same path. |
 | Rename and move a folder of 1,000 files: metadata calls only, no uploads | **Pass.** On B, 1,000 files (uploaded in 426 s); `mv many → moved/renamed` synced in 4 s as one `move` op. All 1,000 Drive IDs and body MD5s unchanged before and after. |
+
+## 2026-10-24, both daemons on the build with all fixes so far
+
+| Check | Result |
+|---|---|
+| Copy a 4 GB file in; it uploads with resumable sessions; killing the daemon mid-upload and restarting resumes, not restarts | **Pass.** 4,000,000,000 random bytes written on B. Upload at about 13 MB/s; `vaultd-b` got SIGKILL after about 2 minutes, then was restarted and unlocked. It finished 80 s later having sent 1,593 MB (`wlo1` tx counter), so about 2.4 GB already on Drive was kept. A downloaded the file: MD5 `db407b05e4afd2a0dfde75290e33801d`, identical to the original. |
+| (Side observation) A file deleted before it ever synced | Its body is uploaded into trash, not dropped, per spec §10. A 3 GB partial test file showed up in B's trash this way and was purged. |
