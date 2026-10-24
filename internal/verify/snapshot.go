@@ -66,7 +66,7 @@ func (s *snapshot) pathOf(id model.ObjectID) string {
 
 func (s *snapshot) fileCheck(object index.Object) *bodyCheck {
 	return &bodyCheck{id: object.ID, path: s.pathOf(object.ID), driveID: object.DriveID, bodyMD5: object.BodyMD5,
-		bodyID: object.BodyID, contentMAC: object.ContentMAC}
+		bodyID: object.BodyID, contentMAC: object.ContentMAC, size: object.Size}
 }
 
 // trashCheck describes a trash item. A trashed file's object row still holds its body
@@ -77,6 +77,6 @@ func (s *snapshot) trashCheck(record index.TrashRecord) (*bodyCheck, bool) {
 	if record.Folder || !ok || object.DriveID != record.DriveID {
 		return check, false
 	}
-	check.bodyMD5, check.bodyID, check.contentMAC = object.BodyMD5, object.BodyID, object.ContentMAC
+	check.bodyMD5, check.bodyID, check.contentMAC, check.size = object.BodyMD5, object.BodyID, object.ContentMAC, object.Size
 	return check, true
 }
