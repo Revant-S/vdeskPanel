@@ -446,3 +446,9 @@ Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed au
 - **Path filter draws dots only.** With a filter the parents of the commits shown are mostly filtered out, so lines would join unrelated commits. The input waits 300 ms after typing, then reloads from the newest commit.
 - **Paging.** 200 commits a page (`historyPageSize`), loaded when the end of the list scrolls into view. A generation counter drops pages that arrive after the filter changed.
 - The view reloads from the top each time it's opened, which drops scroll position and expanded rows. That keeps it simple, and the history it shows is always current.
+
+## Step 9: Settings
+
+- One form over `api.Settings`: mount point, device name, worker counts, polling intervals, trash retention days, and the thumbnailer deny list (one per line). Save sends the whole form; the daemon's `config.Validate` is the only validation beyond `min=1` on the number inputs, so the panel and `vault settings set` can't disagree about what's allowed.
+- A note says most changes apply at the next unlock, as the CLI's help does. **Sign out of Google** asks first, with the CLI's wording.
+- It opens from the header's settings icon, not the left rail, per spec §13.

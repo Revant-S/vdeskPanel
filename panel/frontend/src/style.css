@@ -66,7 +66,7 @@ button.danger { color: var(--danger); }
 button.icon { border: none; background: none; font-size: 18px; padding: 2px 8px; }
 button[aria-current] { color: var(--accent); }
 
-input {
+input, textarea {
   font: inherit;
   color: inherit;
   background: var(--bg);
@@ -173,6 +173,8 @@ td.actions button { margin-left: 4px; }
 
 .settings { display: grid; grid-template-columns: max-content minmax(0, 360px); gap: 8px 14px; align-items: center; }
 .settings .wide { grid-column: 1 / -1; }
+.settings label { color: var(--muted); }
+hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 
 dialog.confirm { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); max-width: 420px; }
 dialog.confirm form { display: flex; justify-content: flex-end; gap: 8px; }
