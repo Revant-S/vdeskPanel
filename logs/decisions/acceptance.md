@@ -54,3 +54,10 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 - `vault verify --deep` (58 min) reported exactly `/zz-drill/corrupt-me.bin: checksum mismatch`, 1 problem. Pass.
 - Gap found: status said "All backed up" while the file could not be restored. Fixed: status now shows restore failures.
 - Orphan GC on C: listed 45,993, found 1, deleted 0 (under minimum age).
+
+## 5,000-file rate-limit check (2026-10-24)
+
+- 5,000 random files of 100 B–4 KB (10 MB) written into A in 31 s. Uploaded in 1,805 s (~2.8 files/s, about Drive's per-user write limit), zero warnings or errors in the log.
+- B listed all 5,000; after `vault download` its 5,000 copies were byte-identical to A's. Pass.
+- Follow-ups: B read on demand at ~7 files/s; `vault download` of a folder on an on-demand device did not show as restoring in status. Both point at the one-request small-file fetch item.
+- Test folder deleted and purged.
