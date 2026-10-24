@@ -4,12 +4,16 @@ import { confirmDialog, h, showError, showNotice } from "../dom";
 import { expiresIn, formatBytes, formatDate, plural } from "../format";
 import { View } from "../view";
 
+function cell(text: string, detail: string): HTMLElement {
+  return h("td", { title: `${text}\n${detail}` }, h("div", {}, text), h("div", { class: "detail" }, detail));
+}
+
 export function createTrashView(): View {
   const summary = h("span", { class: "muted" });
   const emptyButton = h("button", { class: "danger", onclick: () => emptyTrash() }, "Empty trash");
   const body = h("tbody");
-  const table = h("table", {},
-    h("thead", {}, h("tr", {}, ...["Name", "Original path", "Reason", "Device", "Deleted on", "Expires in", ""].map((title) => h("th", {}, title)))),
+  const table = h("table", { class: "trash" },
+    h("thead", {}, h("tr", {}, ...["Item", "Reason", "Deleted on", ""].map((title) => h("th", {}, title)))),
     body);
   const element = h("section", {}, h("div", { class: "toolbar" }, summary, h("span", { class: "spacer" }), emptyButton), table);
   let items: api.TrashItem[] = [];
@@ -34,14 +38,14 @@ export function createTrashView(): View {
   }
 
   function row(item: api.TrashItem): HTMLElement {
-    const name = item.folder ? `${item.name}/ (${plural(item.fileCount, "file")})` : item.name;
+    const contents = item.fileCount === 0 ? "empty" : plural(item.fileCount, "file");
+    const name = item.folder ? `${item.name}/ (${contents})` : item.name;
+    const reason = item.reason.replace("_", " ");
+    const device = item.deviceName || item.device.slice(0, 8);
     return h("tr", {},
-      h("td", {}, name),
-      h("td", { class: "path", title: item.originalPath }, item.originalPath),
-      h("td", {}, item.reason.replace("_", " ")),
-      h("td", {}, item.deviceName || item.device.slice(0, 8)),
-      h("td", {}, formatDate(item.deletedAt)),
-      h("td", {}, expiresIn(item.expiresAt)),
+      cell(name, item.originalPath),
+      cell(reason, `on ${device}`),
+      cell(formatDate(item.deletedAt), `expires in ${expiresIn(item.expiresAt)}`),
       h("td", { class: "actions" },
         h("button", { onclick: () => restore(item) }, "Restore"),
         h("button", { class: "danger", onclick: () => purge(item) }, "Delete now")));

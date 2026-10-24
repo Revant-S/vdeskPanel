@@ -457,3 +457,11 @@ Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed au
 
 - Under the header, one line for each status item that asks the owner to act: files that failed an integrity check, files that couldn't be restored (pointing to `vault verify --deep`), a paused restore, and files not backed up while offline. Wording follows `vault status`. "Keys could reach swap" stays CLI-only; it's a fixed property of the machine, not something to act on from the panel.
 - **Fix in the setup screen.** `vaultExists` is false in every setup state, so the panel reads `message` (`join` / `create`) instead to choose which command to suggest.
+
+## Step 9: fixes from running the panel against B
+
+Ran `bin/vault-panel --home ~/vault-b` and drove it through XTest with screenshots: Tree (sizes, icons, context menu), History (one lane, expand, `/books` filter, paging past the first 200 commits to "Start of history"), Trash (both confirms opened and cancelled; B's trash unchanged), Settings (loads B's values; not saved). The locked screen wasn't exercised: locking B needs its password to undo.
+
+- **Trash table too wide.** At the window's real width, seven columns pushed the dates and buttons off screen. Now four columns, each two lines: item over original path, reason over device, deleted on over expiry, then the actions. Every field from spec §13 is still shown; long text ends in an ellipsis with the full text in a tooltip. Empty folders read `(empty)`.
+- **Expanded commits drew a stray line.** The stretched SVG gap was replaced by one 2 px div per lane, which stretches with the list.
+- **Confirm is an overlay div, not `<dialog>`.** Switched while chasing a missed click (the cause was my test's coordinates, not `<dialog>`); kept because it's verified working in WebKitGTK and needs no top-layer support.

@@ -1,5 +1,5 @@
 import { layout } from "../wailsjs/go/models";
-import { svg } from "./dom";
+import { h, svg } from "./dom";
 
 export const rowHeight = 28;
 const laneWidth = 14;
@@ -70,14 +70,13 @@ export function drawRow(k: number, rows: layout.Row[], lines: Line[], width: num
   return graph;
 }
 
-// drawGap continues the lanes that pass row k through its expanded operation list.
-export function drawGap(k: number, lines: Line[], width: number, complete: boolean, edges: boolean): SVGElement {
-  const gap = svg("svg", { class: "graph gap", width, viewBox: `0 0 ${width} 1`, preserveAspectRatio: "none" });
+// drawGap continues the lanes that pass row k through its expanded operation list. Plain
+// divs stretch with the list, which a fixed-height SVG would not.
+export function drawGap(k: number, lines: Line[], complete: boolean, edges: boolean): HTMLElement {
   const lanes = new Set<number>();
   for (const line of edges ? lines : []) {
     const open = line.to === null && !complete && line.lane !== unknownLane;
     if (line.from <= k && ((line.to ?? -1) > k || open)) lanes.add(line.lane);
   }
-  for (const lane of lanes) gap.append(segment(lane, `M ${laneX(lane)} 0 L ${laneX(lane)} 1`));
-  return gap;
+  return h("div", { class: "gap" }, ...[...lanes].map((lane) => h("span", { class: laneClass(lane), style: `left: ${laneX(lane) - 1}px` })));
 }

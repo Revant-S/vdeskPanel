@@ -44,17 +44,22 @@ function showToast(text: string, error: boolean): void {
 
 export function confirmDialog(message: string, confirmLabel: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const dialog = h("dialog", { class: "confirm" },
-      h("p", {}, message),
-      h("form", { method: "dialog" },
-        h("button", { value: "cancel" }, "Cancel"),
-        h("button", { value: "ok", class: "danger" }, confirmLabel)));
-    dialog.addEventListener("close", () => {
-      resolve(dialog.returnValue === "ok");
-      dialog.remove();
-    });
-    document.body.append(dialog);
-    dialog.showModal();
+    const close = (answer: boolean) => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+      resolve(answer);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close(false);
+    };
+    const cancel = h("button", { onclick: () => close(false) }, "Cancel");
+    const overlay = h("div", { class: "overlay" },
+      h("div", { class: "confirm", role: "alertdialog", "aria-modal": "true" },
+        h("p", {}, message),
+        h("div", { class: "buttons" }, cancel, h("button", { class: "danger", onclick: () => close(true) }, confirmLabel))));
+    document.addEventListener("keydown", onKey);
+    document.body.append(overlay);
+    cancel.focus();
   });
 }
 

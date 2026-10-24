@@ -19,7 +19,7 @@ function opText(op: api.OpView): string {
 interface Item {
   graph: SVGElement;
   ops: HTMLElement | null;
-  gap: SVGElement | null;
+  gap: HTMLElement | null;
 }
 
 export function createHistoryView(): View {
@@ -102,7 +102,7 @@ export function createHistoryView(): View {
   }
 
   function redrawGap(item: Item, k: number): void {
-    const gap = drawGap(k, lines, width, complete, activeFilter === "");
+    const gap = drawGap(k, lines, complete, activeFilter === "");
     item.gap!.replaceWith(gap);
     item.gap = gap;
     item.ops!.style.paddingLeft = `${width}px`;
@@ -125,7 +125,7 @@ export function createHistoryView(): View {
         item.ops = item.gap = null;
         return;
       }
-      item.gap = svg("svg", {});
+      item.gap = h("div");
       item.ops = h("div", { class: "ops-row" }, item.gap, h("ul", { class: "ops" }, ...(commit.ops ?? []).map((op) => h("li", {}, opText(op)))));
       redrawGap(item, k);
       wrapper.append(item.ops);

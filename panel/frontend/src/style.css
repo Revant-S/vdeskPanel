@@ -131,7 +131,11 @@ main { grid-area: main; overflow: auto; padding: 12px; }
 table { width: 100%; border-collapse: collapse; }
 th { text-align: left; font-weight: 600; color: var(--muted); }
 th, td { padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-td.path { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+table.trash { table-layout: fixed; }
+table.trash td div { overflow: hidden; text-overflow: ellipsis; }
+table.trash .detail { color: var(--muted); font-size: 12px; }
+table.trash th:nth-child(3) { width: 175px; }
+table.trash th:nth-child(4) { width: 180px; }
 td.actions { text-align: right; }
 td.actions button { margin-left: 4px; }
 .num { text-align: right; }
@@ -153,8 +157,7 @@ td.actions button { margin-left: 4px; }
 .graph { flex: none; }
 .graph path { fill: none; stroke: var(--lane); stroke-width: 2; }
 .graph path.dashed { stroke-dasharray: 2 2; }
-.graph.gap { position: absolute; left: 0; top: 0; height: 100%; }
-.graph.gap path { vector-effect: non-scaling-stroke; }
+.gap span { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--lane); }
 .graph circle { fill: var(--lane); }
 .graph circle.retired { fill: var(--bg); stroke: var(--lane); stroke-width: 2; }
 .ops-row { position: relative; }
@@ -176,8 +179,9 @@ td.actions button { margin-left: 4px; }
 .settings label { color: var(--muted); }
 hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 
-dialog.confirm { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); max-width: 420px; }
-dialog.confirm form { display: flex; justify-content: flex-end; gap: 8px; }
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.3); }
+.confirm { max-width: 420px; padding: 4px 16px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.confirm .buttons { display: flex; justify-content: flex-end; gap: 8px; }
 
 .context-menu {
   position: fixed;
