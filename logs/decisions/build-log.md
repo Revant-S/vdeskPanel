@@ -431,3 +431,9 @@ Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed au
 - Table per spec §13, newest deletion first; a folder row reads `name/ (N files)`. The list reloads each time the view opens and after every action, so another device's restore shows up without a push from the daemon.
 - **Restore** says where the item went (`Restored to …`), since a taken path restores as `name (restored).ext`. **Delete now** and **Empty trash** confirm first; the Empty trash question states the item count and total size from the list on screen, and the notice afterwards repeats what the daemon actually deleted.
 - The raw reason (`moved_out`) is shown with spaces, matching the History summaries.
+
+## Step 9: Tree view
+
+- Folders load their children when expanded (one `Tree` call per folder), folders first, then by name. Which folders are open is kept, so reopening the view or pressing Refresh reloads and re-expands them.
+- **Folder icon from sizes.** The daemon's state for a folder row is its own row state, not its contents, so the panel picks Cloud only / Partial / Local from `localSize` against `size`. Folder rows show `total · local on this device` (spec §13).
+- Right-click gives Open, Show in Files, Download and Free up space; double-clicking a file opens it. Download shows a notice when it starts, since `RequestLocal` waits for the files. After Download or Free, the parent folder reloads so icons and sizes update.
