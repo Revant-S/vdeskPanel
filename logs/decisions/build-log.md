@@ -437,3 +437,12 @@ Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed au
 - Folders load their children when expanded (one `Tree` call per folder), folders first, then by name. Which folders are open is kept, so reopening the view or pressing Refresh reloads and re-expands them.
 - **Folder icon from sizes.** The daemon's state for a folder row is its own row state, not its contents, so the panel picks Cloud only / Partial / Local from `localSize` against `size`. Folder rows show `total · local on this device` (spec §13).
 - Right-click gives Open, Show in Files, Download and Free up space; double-clicking a file opens it. Download shows a notice when it starts, since `RequestLocal` waits for the files. After Download or Free, the parent folder reloads so icons and sizes update.
+
+## Step 9: History view
+
+- **Graph per row.** Each commit row draws its own 28 px slice of SVG: the dot, the lines passing through, and the line leaving it. A line leaves the dot, bends into the parent's lane and runs down that lane, so a bend across lanes is a merge (spec §13). Colours are 8 CSS variables (`--lane-0..7`, matching `layout.PaletteSize`), with a dark-mode set. Retired devices get a hollow dot and "(retired)".
+- **Lines across pages.** `layout.AssignLanes` keeps lanes stable across pages, but its `ToRow` is page-local. The frontend matches parents by commit ID over every loaded row instead, so a line that was off the page joins up when the parent's page arrives. A line whose parent hasn't loaded runs to the bottom while more pages can come, and ends in a short dashed stub once history is complete. An off-page merge parent of unknown lane is always a stub.
+- **Expanded commits** list their operations in the daemon's summary words; the lanes passing that row continue through the list (a stretched SVG with non-scaling strokes).
+- **Path filter draws dots only.** With a filter the parents of the commits shown are mostly filtered out, so lines would join unrelated commits. The input waits 300 ms after typing, then reloads from the newest commit.
+- **Paging.** 200 commits a page (`historyPageSize`), loaded when the end of the list scrolls into view. A generation counter drops pages that arrive after the filter changed.
+- The view reloads from the top each time it's opened, which drops scroll position and expanded rows. That keeps it simple, and the history it shows is always current.

@@ -146,12 +146,22 @@ td.actions button { margin-left: 4px; }
 .file-state[data-state="corrupt"] { color: var(--danger); }
 .tree-children { padding-left: 18px; }
 
-.history { display: grid; grid-template-columns: auto 1fr; }
-.history svg { display: block; }
 .commit { height: 28px; display: flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; }
 .commit:hover { background: var(--surface); }
 .commit .device { font-weight: 600; }
-.ops { margin: 0 0 6px; padding: 4px 8px 4px 24px; background: var(--surface); border-radius: 4px; user-select: text; }
+.ops { margin: 0 0 6px; padding: 4px 8px 4px 12px; list-style: none; background: var(--surface); border-radius: 4px; user-select: text; }
+.graph { flex: none; }
+.graph path { fill: none; stroke: var(--lane); stroke-width: 2; }
+.graph path.dashed { stroke-dasharray: 2 2; }
+.graph.gap { position: absolute; left: 0; top: 0; height: 100%; }
+.graph.gap path { vector-effect: non-scaling-stroke; }
+.graph circle { fill: var(--lane); }
+.graph circle.retired { fill: var(--bg); stroke: var(--lane); stroke-width: 2; }
+.ops-row { position: relative; }
+.commit .time { color: var(--muted); }
+.commit .device { color: var(--lane); }
+.commit .summary { overflow: hidden; text-overflow: ellipsis; }
+.history-end { padding: 8px; }
 .lane-0 { --lane: var(--lane-0); }
 .lane-1 { --lane: var(--lane-1); }
 .lane-2 { --lane: var(--lane-2); }

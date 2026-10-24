@@ -5,6 +5,7 @@ import { EventsOn } from "../wailsjs/runtime/runtime";
 import { errorText, h } from "./dom";
 import { createShell } from "./shell";
 import { View } from "./view";
+import { createHistoryView } from "./views/history";
 import { createLockedScreen, createSetupScreen } from "./views/locked";
 import { createTrashView } from "./views/trash";
 import { createTreeView } from "./views/tree";
@@ -15,7 +16,7 @@ function placeholder(name: string): View {
 
 const root = document.getElementById("app")!;
 const shell = createShell(
-  { Tree: createTreeView(), History: placeholder("History"), Trash: createTrashView() },
+  { Tree: createTreeView(), History: createHistoryView(), Trash: createTrashView() },
   placeholder("Settings"),
 );
 let screen = "";
