@@ -134,6 +134,7 @@ type bodyCheck struct {
 	bodyMD5    string
 	bodyID     []byte
 	contentMAC []byte
+	size       int64
 }
 
 func (c *bodyCheck) problem(kind ProblemKind) Problem {

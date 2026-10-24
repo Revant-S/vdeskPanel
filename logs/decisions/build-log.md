@@ -405,3 +405,10 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Cause.** `hideUnder` gave the arriving row the folder's delete stamp but no trash ID, since the folder's trash item only exists once its batch forms, and that batch only takes this device's own ops. A's Drive move of `/D` into the trash took `m.txt` along, but A's trash entry didn't list it, so restoring `/D` left it behind.
 - **Fix.** When a folder delete is finalized, `sweepIntoTrash` gives everything still under the folder without a trash ID the folder's entry, and descends through it. Rows in some other trash entry are left alone.
 - **Test.** The move and restore variants converge across both devices and a fresh one, before and after restoring `/D` on A. The move variant fails without the fix.
+
+## Perf: size-aware download concurrency for restore and deep verify (recovery-drill find)
+
+- **Measured.** C, a fresh instance with Restore everything, restored about 2 files/s: about 5.5 h for 40,425 files totalling 4 GB. `verify --deep` would take about 2 h. Each small file costs two range requests (header, body), and Drive's media endpoint answers a tiny request in roughly 0.5–1 s. With 4 files in flight that gives about 2 files/s: the time goes to round trips, not bandwidth or disk. That's about 5 requests/s against Drive's 12,000 per minute (200/s).
+- **Decision (deviates from spec §8's single "Downloads: 4 files in parallel").** New package `internal/slots`: a large file takes 4 slots and a file under 1 MiB takes 1, with 4 × the configured file count in total. Large files still run 4 at a time, as the spec intends for bandwidth; small files run 16 at a time, about 20 requests/s, well under Drive's limit. Used by the restorer and by `verify --deep`. The worker count stays configurable as before.
+- **Not done yet.** One request instead of two for small bodies (fetching header and body together). That would halve round trips again, but touches the sparse cache's fetch path, so it's left for later.
+- **Tests.** `slots`: 4 large or 16 small in flight at most. The restore and verify suites pass unchanged.
