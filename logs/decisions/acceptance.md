@@ -46,3 +46,11 @@ A is the installed daemon (old build, about 20k files still queued for upload). 
 | Fresh instance restores from only the password and Google sign-in | **Pass so far.** Signed in and joined; the tree (14,054 entries visible after 30 s) appeared before any body downloaded, and the restore started on its own. |
 | `kill -9` mid-restore; on restart it resumes without re-downloading finished files | **Pass.** Killed at 1,624 of 40,425 files. After restart and unlock it continued from there (1,715 after 30 s). Of the 1,627 bodies on disk before the kill, 1,623 were untouched (same path and modification time); the other 4 were the files in flight, one per download worker, and were fetched again. |
 | Restore speed (not a spec check) | **Slow.** About 2 files/s, so about 5.5 h for 40,425 files of 4 GB. Small files are bound by round trips: 2 HTTP requests and several fully synced index writes per file, with 4 files in flight. |
+
+## Recovery drill (instance C, 2026-10-24)
+
+- Fresh restore-everything device: 40,425 files / 4 GB. Size-aware slots raised the rate from 118 to 393 files/min.
+- One byte flipped on Drive in a test body (`tools/corruptbody`). C refused it: segment 25 failed authentication, reads of that segment return EIO, the other segments read normally, restore retries and never marks it Local.
+- `vault verify --deep` (58 min) reported exactly `/zz-drill/corrupt-me.bin: checksum mismatch`, 1 problem. Pass.
+- Gap found: status said "All backed up" while the file could not be restored. Fixed: status now shows restore failures.
+- Orphan GC on C: listed 45,993, found 1, deleted 0 (under minimum age).
