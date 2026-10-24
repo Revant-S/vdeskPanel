@@ -1,8 +1,8 @@
 STATICCHECK := go tool staticcheck
 
-.PHONY: check fmt-check vet lint test test-bulk build install e2e panel
+.PHONY: check fmt-check vet lint frontend-check test test-bulk build install e2e panel
 
-check: fmt-check vet lint test
+check: fmt-check vet lint frontend-check test
 
 fmt-check:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
@@ -14,6 +14,9 @@ vet:
 lint:
 	$(STATICCHECK) ./...
 	$(STATICCHECK) -tags devdrive ./tools/...
+
+frontend-check:
+	npm --prefix panel/frontend run --silent typecheck
 
 test:
 	go test -race ./...
