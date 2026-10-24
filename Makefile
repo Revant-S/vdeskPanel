@@ -1,6 +1,6 @@
 STATICCHECK := go tool staticcheck
 
-.PHONY: check fmt-check vet lint frontend-check test test-bulk build install e2e panel
+.PHONY: check fmt-check vet lint frontend-check test test-bulk build install e2e panel install-panel
 
 check: fmt-check vet lint frontend-check test
 
@@ -40,3 +40,10 @@ e2e:
 panel:
 	cd panel/frontend && npm ci && npm run build
 	go build -tags desktop,production,webkit2_41 -o bin/vault-panel ./panel
+
+install-panel: panel
+	install -Dm755 bin/vault-panel $(HOME)/.local/bin/vault-panel
+	install -Dm644 panel/icon.png $(HOME)/.local/share/icons/hicolor/256x256/apps/vault-panel.png
+	install -Dm644 packaging/desktop/vault-panel.desktop $(HOME)/.local/share/applications/vault-panel.desktop
+	-update-desktop-database -q $(HOME)/.local/share/applications
+	@echo "Vault is in the app grid; right-click its taskbar icon and choose Pin to Dash to keep it there."
