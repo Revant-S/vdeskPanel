@@ -28,6 +28,7 @@ type Status struct {
 	LastBackedUp     time.Time        `json:"lastBackedUp,omitzero"`
 	BytesPerSecond   int64            `json:"bytesPerSecond"`
 	CorruptFiles     int              `json:"corruptFiles"`
+	RestoreFailed    int              `json:"restoreFailed"`
 	KeysMaySwap      bool             `json:"keysMaySwap"`
 	Restore          *RestoreProgress `json:"restore,omitempty"`
 	Message          string           `json:"message,omitempty"`

@@ -412,3 +412,7 @@ Scenarios run with every device synced and polled until quiet, then checked for 
 - **Decision (deviates from spec §8's single "Downloads: 4 files in parallel").** New package `internal/slots`: a large file takes 4 slots and a file under 1 MiB takes 1, with 4 × the configured file count in total. Large files still run 4 at a time, as the spec intends for bandwidth; small files run 16 at a time, about 20 requests/s, well under Drive's limit. Used by the restorer and by `verify --deep`. The worker count stays configurable as before.
 - **Not done yet.** One request instead of two for small bodies (fetching header and body together). That would halve round trips again, but touches the sparse cache's fetch path, so it's left for later.
 - **Tests.** `slots`: 4 large or 16 small in flight at most. The restore and verify suites pass unchanged.
+
+## Status shows files that failed to restore
+
+Recovery drill on C: a body corrupted on Drive was refused (segment 25 failed authentication, reads return EIO), but `vault status` said "All backed up" with no restore line, because the round plan skips failed files during their retry wait and so reports complete. Status now carries `restoreFailed` from the restorer's failure set, and the CLI prints it with a pointer to `verify --deep`.
