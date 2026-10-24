@@ -26,8 +26,17 @@ export function errorText(err: unknown): string {
 let toastTimer = 0;
 
 export function showError(err: unknown): void {
-  const toast = document.getElementById("toast") ?? document.body.appendChild(h("div", { id: "toast", role: "alert" }));
-  toast.textContent = errorText(err);
+  showToast(errorText(err), true);
+}
+
+export function showNotice(text: string): void {
+  showToast(text, false);
+}
+
+function showToast(text: string, error: boolean): void {
+  const toast = document.getElementById("toast") ?? document.body.appendChild(h("div", { id: "toast", role: "status" }));
+  toast.textContent = text;
+  toast.classList.toggle("notice", !error);
   toast.classList.add("visible");
   clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 6000);

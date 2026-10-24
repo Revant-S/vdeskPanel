@@ -6,6 +6,7 @@ import { errorText, h } from "./dom";
 import { createShell } from "./shell";
 import { View } from "./view";
 import { createLockedScreen, createSetupScreen } from "./views/locked";
+import { createTrashView } from "./views/trash";
 
 function placeholder(name: string): View {
   return { element: h("p", {}, name), show() {} };
@@ -13,7 +14,7 @@ function placeholder(name: string): View {
 
 const root = document.getElementById("app")!;
 const shell = createShell(
-  { Tree: placeholder("Tree"), History: placeholder("History"), Trash: placeholder("Trash") },
+  { Tree: placeholder("Tree"), History: placeholder("History"), Trash: createTrashView() },
   placeholder("Settings"),
 );
 let screen = "";

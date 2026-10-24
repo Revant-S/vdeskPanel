@@ -196,3 +196,4 @@ dialog.confirm form { display: flex; justify-content: flex-end; gap: 8px; }
   transition: opacity 0.2s;
 }
 #toast.visible { opacity: 1; }
+#toast.notice { background: var(--text); color: var(--bg); }
