@@ -213,11 +213,22 @@ func (d *Daemon) unlock(ctx context.Context, password []byte) error {
 	return d.mountSession(ctx, keyring, client, loadRestoreMode(d.Layout))
 }
 
+// connectWithStoredToken prefers a sign-in made while locked, which replaces a stored token
+// Google has expired or revoked.
 func (d *Daemon) connectWithStoredToken(ctx context.Context, keyring *crypto.Keyring) (*drive.Client, error) {
 	store := auth.NewTokenStore(d.Layout.TokenFile, keyring)
-	token, err := store.Load()
-	if err != nil {
-		return nil, fmt.Errorf("load Google sign-in: %w", err)
+	d.mu.Lock()
+	token := d.pendingToken
+	d.mu.Unlock()
+	if token != nil {
+		if err := store.Save(token); err != nil {
+			return nil, fmt.Errorf("save Google sign-in: %w", err)
+		}
+	} else {
+		var err error
+		if token, err = store.Load(); err != nil {
+			return nil, fmt.Errorf("load Google sign-in: %w", err)
+		}
 	}
 	return d.Drive.Connect(ctx, store.PersistingSource(d.Drive.TokenSource(context.Background(), token)))
 }

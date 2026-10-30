@@ -472,3 +472,7 @@ Ran `bin/vault-panel --home ~/vault-b` and drove it through XTest with screensho
 - **Matching the window to its icon.** On Wayland, GNOME matches a window to a `.desktop` file by app ID, which GTK takes from `g_set_prgname`. Wails sets that from `linux.Options.ProgramName`, so it is `vault-panel`, the same as the desktop file's name and `StartupWMClass` (used on X11). The same PNG is embedded as the window icon.
 - The icon is a 256 px PNG (vault-door dial on the panel's accent blue) in `panel/icon.png`, so `go:embed` can reach it. It's a PNG because the machine has no SVG rasterizer.
 - The desktop entry starts instance A (no `--home`). B is started from a terminal: `vault-panel --home ~/vault-b`.
+
+## Sign in again while locked
+
+2026-10-30: Google expired A's refresh token (`invalid_grant`, OAuth app in Testing mode, 7-day limit). Unlock then failed with an internal error, and `vault signin` could not help: a sign-in made while locked only set `pendingToken`, while unlock always loaded the stored token. Unlock now prefers a pending sign-in and saves it over the stored token under the vault keyring.
