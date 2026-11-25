@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Vault
-Comment=Encrypted Drive-backed storage
-Exec=vault-panel
-Icon=vault-panel
-StartupWMClass=vault-panel
-Categories=Utility;
-Terminal=false
