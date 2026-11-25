@@ -476,3 +476,7 @@ Ran `bin/vault-panel --home ~/vault-b` and drove it through XTest with screensho
 ## Sign in again while locked
 
 2026-10-30: Google expired A's refresh token (`invalid_grant`, OAuth app in Testing mode, 7-day limit). Unlock then failed with an internal error, and `vault signin` could not help: a sign-in made while locked only set `pendingToken`, while unlock always loaded the stored token. Unlock now prefers a pending sign-in and saves it over the stored token under the vault keyring.
+
+## Panel removed
+
+2026-11-25: the owner does not use the panel and asked for it to be removed. The `vault` CLI already covers every panel action (unlock, lock, trash restore/purge/empty, history, devices, settings, download, free, signout), and files are browsed through the mount. Removed `panel/`, the desktop entry, the `panel`, `install-panel` and `frontend-check` Make targets, and the Wails dependency (`go mod tidy`). `make check` no longer needs Node. The spec keeps section 13 as a record, marked removed. The daemon and CLI are static binaries, so dropping the WebKitGTK-linked panel also leaves nothing distro-specific to build.

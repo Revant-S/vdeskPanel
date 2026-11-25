@@ -1,5 +1,5 @@
 // Package api is the local HTTP-over-Unix-socket interface between the daemon and its
-// clients, the panel and the CLI. This file is the contract both sides build on.
+// clients such as the CLI. This file is the contract both sides build on.
 package api
 
 import "time"

@@ -25,7 +25,7 @@ These are fixed for v1. Rows marked *default* were not specified by the owner an
 
 | Topic | Decision | Origin |
 | --- | --- | --- |
-| Interface | FUSE mount at `~/Vault` plus a separate control panel window | Owner |
+| Interface | FUSE mount at `~/Vault` plus the `vault` CLI (the panel was removed on 2026-11-25) | Owner |
 | Drive layout | Folder tree on Drive mirrors the vault exactly; every name and every file body is encrypted | Owner |
 | Browsing | Files are browsed through the mount and the panel. Drive's web UI shows only encrypted names | Owner |
 | Password | Argon2id-derived key held only in daemon RAM; asked on every start; never on disk, never in a keyring | Owner |
@@ -38,7 +38,6 @@ These are fixed for v1. Rows marked *default* were not specified by the owner an
 | History | Read-only graph; no undo or restore in v1 | Owner |
 | Trash | Encrypted trash folder on Drive, kept 30 days; restore and purge from the panel | Owner |
 | Language | Go | Owner |
-| Panel toolkit | Wails v2 with a plain TypeScript and SVG frontend | Default |
 | Platform | Linux only (Ubuntu first) | Owner |
 | Content | Mostly media and documents, so large files stream and resume | Owner |
 | Drive scope | `drive.file` only; the app cannot see the rest of the Drive | Default |
@@ -424,6 +423,8 @@ The first-run screen shows this list and asks the owner to confirm each item. No
 The acceptance list (section 15) includes a full drill: wipe the app's local data on a working laptop and restore from nothing. Repeating it once a month is the only real proof the backup works.
 
 ## 13. Control panel UI
+
+> Removed on 2026-11-25: the owner did not use the panel. Every action below is available through the `vault` CLI. Where other sections say "the panel", read "the CLI". This section is kept as a record of the design.
 
 The panel is a small Wails v2 window with three views (Tree, History, Trash) and a status line; it shows only what the owner needs to act on.
 

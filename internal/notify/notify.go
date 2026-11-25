@@ -1,5 +1,5 @@
 // Package notify shows desktop notifications through org.freedesktop.Notifications, so
-// they appear even when the panel is closed.
+// they appear without any client running.
 package notify
 
 import (

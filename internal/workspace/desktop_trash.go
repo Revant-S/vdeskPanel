@@ -6,7 +6,7 @@ import (
 	"vault/internal/model"
 )
 
-// Nautilus "Move to Trash" renames into .Trash-<uid>/files/ at the mount root. The panel's
+// Nautilus "Move to Trash" renames into .Trash-<uid>/files/ at the mount root. The vault's own
 // trash is the real one, so such a rename deletes from the vault at once, along with the
 // .trashinfo record Nautilus wrote first.
 

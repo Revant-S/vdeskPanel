@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Client talks to the daemon over its Unix socket. The panel and the CLI share it.
+// Client talks to the daemon over its Unix socket. The CLI uses it.
 type Client struct {
 	http *http.Client
 }
