@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// Entry is one decrypted object as the filesystem and panel see it.
+// Entry is one decrypted object as the filesystem and clients see it.
 type Entry struct {
 	ID         ObjectID
 	ParentID   ObjectID

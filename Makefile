@@ -1,8 +1,8 @@
 STATICCHECK := go tool staticcheck
 
-.PHONY: check fmt-check vet lint frontend-check test test-bulk build install e2e panel install-panel
+.PHONY: check fmt-check vet lint test test-bulk build install e2e
 
-check: fmt-check vet lint frontend-check test
+check: fmt-check vet lint test
 
 fmt-check:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
@@ -14,9 +14,6 @@ vet:
 lint:
 	$(STATICCHECK) ./...
 	$(STATICCHECK) -tags devdrive ./tools/...
-
-frontend-check:
-	npm --prefix panel/frontend run --silent typecheck
 
 test:
 	go test -race ./...
@@ -36,14 +33,3 @@ install: build
 
 e2e:
 	go test -tags e2e,devdrive ./test/e2e/...
-
-panel:
-	cd panel/frontend && npm ci && npm run build
-	go build -tags desktop,production,webkit2_41 -o bin/vault-panel ./panel
-
-install-panel: panel
-	install -Dm755 bin/vault-panel $(HOME)/.local/bin/vault-panel
-	install -Dm644 panel/icon.png $(HOME)/.local/share/icons/hicolor/256x256/apps/vault-panel.png
-	install -Dm644 packaging/desktop/vault-panel.desktop $(HOME)/.local/share/applications/vault-panel.desktop
-	-update-desktop-database -q $(HOME)/.local/share/applications
-	@echo "Vault is in the app grid; right-click its taskbar icon and choose Pin to Dash to keep it there."
